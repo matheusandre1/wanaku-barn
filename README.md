@@ -4,22 +4,10 @@
 [![Build](https://img.shields.io/github/actions/workflow/status/wanaku-ai/wanaku/main-build.yml?branch=main)](https://github.com/wanaku-ai/wanaku/actions)
 [![Release](https://img.shields.io/github/v/release/wanaku-ai/wanaku)](https://github.com/wanaku-ai/wanaku/releases)
 
-The Wanaku MCP Router is a router for AI-enabled applications powered by the [Model Context Protocol (MCP)](https://modelcontextprotocol.io/).
-
-This protocol is an open protocol that standardizes how applications provide context to LLMs.
-
-The project name comes from the origins of the word [Guanaco](https://en.wikipedia.org/wiki/Guanaco), a camelid native to
-South America.
-
-## Key Features
-
-- **Unified Access** - Centralized routing and resource management for AI agents
-- **MCP-to-MCP Bridge** - Act as a gateway or proxy for other MCP servers
-- **Extensive Connectivity** - Leverage 400+ Apache Camel components for integration
-- **Secure by Default** - Built-in authentication and authorization via Keycloak (optional — can run without auth)
-- **Kubernetes-Native** - First-class support for OpenShift and Kubernetes deployments
-- **Extensible Architecture** - Easy to add MCP servers
-- **Multi-Namespace Support** - Organize tools and resources across isolated namespaces
+Wanaku Barn is a collection of utilities for the [Wanaku Governed Execution Proxy](https://github.com/wanaku-ai/wanaku) (formerly known as
+Wanaku MCP Router). It provides the project with the OpenShift/Kubernetes operator for simplified deployment on the
+cloud, a CLI that helps manage the project and tools for simplifying the administration of credentials when using
+Keycloak.
 
 ## Quick Start
 
