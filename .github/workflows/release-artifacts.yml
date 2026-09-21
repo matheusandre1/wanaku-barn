@@ -121,20 +121,3 @@ jobs:
         if: github.repository == 'wanaku-ai/wanaku-barn'
         run: |
           ./build-manifests.sh ${{ github.event.inputs.currentDevelopmentVersion }}
-      - name: Announce release in GitHub Discussions
-        env:
-          BARN_RELEASE_TOKEN: ${{ github.token }}
-          WANAKU_DISCUSSIONS_TOKEN: ${{ secrets.WANAKU_DISCUSSIONS_TOKEN }}
-          RELEASE_TAG: wanaku-${{ github.event.inputs.currentDevelopmentVersion }}
-          RELEASE_VERSION: ${{ github.event.inputs.currentDevelopmentVersion }}
-        run: |
-          release_url=$(GH_TOKEN="$BARN_RELEASE_TOKEN" gh release view "$RELEASE_TAG" --json url --jq '.url')
-          sed \
-            -e "s|{{projectVersion}}|${RELEASE_VERSION}|g" \
-            -e "s|{{releaseNotesUrl}}|${release_url}|g" \
-            src/jreleaser/discussions.tpl > "$RUNNER_TEMP/discussion.md"
-          GH_TOKEN="$WANAKU_DISCUSSIONS_TOKEN" gh discussion create \
-            --repo wanaku-ai/wanaku \
-            --category Announcements \
-            --title "Wanaku Barn ${RELEASE_VERSION} is available" \
-            --body-file "$RUNNER_TEMP/discussion.md"
