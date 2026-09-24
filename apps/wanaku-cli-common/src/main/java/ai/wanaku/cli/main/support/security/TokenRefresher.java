@@ -106,7 +106,7 @@ public class TokenRefresher {
             RefreshToken newRefreshToken = successResponse.getTokens().getRefreshToken();
 
             long expiryEpochSeconds = Instant.now().getEpochSecond() + newAccessToken.getLifetime();
-            LOG.info("Token refreshed successfully, new token expires in {} seconds", newAccessToken.getLifetime());
+            LOG.trace("Token refreshed successfully, new token expires in {} seconds", newAccessToken.getLifetime());
 
             return new RefreshResult(
                     newAccessToken.getValue(),
