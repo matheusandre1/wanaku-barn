@@ -116,6 +116,33 @@ class CredentialsCommandsTest {
     }
 
     @Test
+    void credentialsShowSecretInPlainModePrintsOnlyTheSecret() throws Exception {
+        when(adminClient.listClients(any()))
+                .thenReturn(List.of(Map.of("clientId", "my-service", "description", "test", "enabled", true)));
+        when(adminClient.getClientSecret(any(), eq("my-service"))).thenReturn("s3cr3t");
+
+        CredentialsShow cmd = new CredentialsShow(adminClient);
+        java.lang.reflect.Field f = CredentialsShow.class.getDeclaredField("clientId");
+        f.setAccessible(true);
+        f.set(cmd, "my-service");
+        java.lang.reflect.Field s = CredentialsShow.class.getDeclaredField("showSecret");
+        s.setAccessible(true);
+        s.set(cmd, true);
+
+        WanakuPrinter.setPlainMode(true);
+        int result;
+        try {
+            result = cmd.doCall(terminal, printer);
+        } finally {
+            WanakuPrinter.setPlainMode(false);
+        }
+
+        assertEquals(EXIT_OK, result);
+        verify(printer).printValue("s3cr3t");
+        verify(printer, org.mockito.Mockito.never()).printTable(any(List.class), any(), any(), any());
+    }
+
+    @Test
     void credentialsShowNonExistentClientShouldReturnError() throws Exception {
         when(adminClient.listClients(any())).thenReturn(List.of());
 

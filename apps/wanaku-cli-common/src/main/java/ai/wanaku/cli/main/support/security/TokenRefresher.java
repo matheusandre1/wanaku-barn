@@ -13,6 +13,8 @@ import com.nimbusds.oauth2.sdk.RefreshTokenGrant;
 import com.nimbusds.oauth2.sdk.TokenErrorResponse;
 import com.nimbusds.oauth2.sdk.TokenRequest;
 import com.nimbusds.oauth2.sdk.TokenResponse;
+import com.nimbusds.oauth2.sdk.auth.ClientSecretBasic;
+import com.nimbusds.oauth2.sdk.auth.Secret;
 import com.nimbusds.oauth2.sdk.http.HTTPRequest;
 import com.nimbusds.oauth2.sdk.id.ClientID;
 import com.nimbusds.oauth2.sdk.id.Issuer;
@@ -67,18 +69,30 @@ public class TokenRefresher {
      * @param refreshTokenValue the refresh token value
      * @param authServerUrl the authentication server URL (e.g., http://localhost:8080)
      * @param clientId the OAuth2 client ID
+     * @param clientSecret the OAuth2 client secret for confidential clients, or null for public clients
      * @param realm the authentication realm, or null to use the router OIDC proxy
      * @return the refresh result containing new tokens and expiry
      * @throws TokenRefreshException if the refresh fails
      */
-    public RefreshResult refresh(String refreshTokenValue, String authServerUrl, String clientId, String realm) {
+    public RefreshResult refresh(
+            String refreshTokenValue, String authServerUrl, String clientId, String clientSecret, String realm) {
         try {
             URI tokenEndpoint = resolveTokenEndpointUri(authServerUrl, realm);
             RefreshToken refreshToken = new RefreshToken(refreshTokenValue);
             AuthorizationGrant refreshTokenGrant = new RefreshTokenGrant(refreshToken);
             ClientID clientID = new ClientID(clientId);
 
-            TokenRequest request = new TokenRequest(tokenEndpoint, clientID, refreshTokenGrant, null);
+            TokenRequest request;
+            if (clientSecret != null && !clientSecret.isBlank()) {
+                // Confidential client (e.g. wanaku-mcp-router): authenticate the client itself
+                request = new TokenRequest(
+                        tokenEndpoint,
+                        new ClientSecretBasic(clientID, new Secret(clientSecret)),
+                        refreshTokenGrant,
+                        null);
+            } else {
+                request = new TokenRequest(tokenEndpoint, clientID, refreshTokenGrant, null);
+            }
 
             LOG.debug("Sending token refresh request to {}", tokenEndpoint);
             HTTPRequest httpRequest = request.toHTTPRequest();

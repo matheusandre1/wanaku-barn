@@ -5,6 +5,7 @@ import org.jline.terminal.Terminal;
 import ai.wanaku.cli.main.support.AuthCredentialStore;
 import ai.wanaku.cli.main.support.WanakuPrinter;
 
+import static ai.wanaku.cli.main.commands.BaseCommand.EXIT_ERROR;
 import static ai.wanaku.cli.main.commands.BaseCommand.EXIT_OK;
 
 import org.junit.jupiter.api.BeforeEach;
@@ -90,8 +91,8 @@ class AuthCommandsTest {
 
         int result = authToken.doCall(terminal, printer);
 
-        assertEquals(EXIT_OK, result);
-        verify(printer).printInfoMessage("No API token is currently set");
+        assertEquals(EXIT_ERROR, result);
+        verify(printer).printWarningMessage("No valid API token is available, run 'wanaku auth login'");
     }
 
     @Test
@@ -108,7 +109,7 @@ class AuthCommandsTest {
         int result = authToken.doCall(terminal, printer);
 
         assertEquals(EXIT_OK, result);
-        verify(printer).printInfoMessage("test-token-123456789");
+        verify(printer).printValue("test-token-123456789");
     }
 
     @Test

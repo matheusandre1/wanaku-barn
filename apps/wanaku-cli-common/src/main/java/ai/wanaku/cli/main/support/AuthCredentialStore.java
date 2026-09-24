@@ -30,6 +30,7 @@ public class AuthCredentialStore {
     private static final String AUTH_SERVER_URL_KEY = "auth.server.url";
     private static final String TOKEN_EXPIRY_KEY = "token.expiry";
     private static final String CLIENT_ID_KEY = "client.id";
+    private static final String CLIENT_SECRET_KEY = "client.secret";
     private static final String REALM_KEY = "auth.realm";
 
     private final URI credentialsUri;
@@ -190,6 +191,29 @@ public class AuthCredentialStore {
      */
     public String getClientId() {
         return get(CLIENT_ID_KEY);
+    }
+
+    /**
+     * Stores the OAuth2 client secret used by confidential clients (e.g. {@code wanaku-mcp-router})
+     * so that token refresh can authenticate the client.
+     *
+     * @param clientSecret the client secret, or null to remove it
+     */
+    public void storeClientSecret(String clientSecret) {
+        if (clientSecret != null && !clientSecret.isBlank()) {
+            storeCredential(CLIENT_SECRET_KEY, clientSecret);
+        } else {
+            clearCredential(CLIENT_SECRET_KEY);
+        }
+    }
+
+    /**
+     * Retrieves the OAuth2 client secret.
+     *
+     * @return the client secret, or null if the client is public or not set
+     */
+    public String getClientSecret() {
+        return get(CLIENT_SECRET_KEY);
     }
 
     /**

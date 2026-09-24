@@ -80,15 +80,16 @@ public class AuthToken extends BaseCommand {
             String apiToken = getValidAccessToken(printer);
             if (StringHelper.isNotEmpty(apiToken)) {
                 if (operation.getOptions.unmask) {
-                    printer.printInfoMessage(apiToken.trim());
+                    // Raw value only: scripts capture this with $(wanaku auth token --get --unmask --plain)
+                    printer.printValue(apiToken.trim());
                 } else {
                     String maskedToken = maskToken(apiToken);
                     printer.printInfoMessage("Current API token: " + maskedToken);
                 }
-            } else {
-                printer.printInfoMessage("No API token is currently set");
+                return EXIT_OK;
             }
-            return EXIT_OK;
+            printer.printWarningMessage("No valid API token is available, run 'wanaku auth login'");
+            return EXIT_ERROR;
         }
 
         if (operation.clearToken) {
@@ -167,14 +168,16 @@ public class AuthToken extends BaseCommand {
         }
 
         if (StringHelper.isEmpty(clientId)) {
-            clientId = "admin-cli";
+            printer.printWarningMessage("Token expired and no client ID is stored, run 'wanaku auth login' again");
+            return false;
         }
 
         String realm = credentialStore.getRealm();
+        String clientSecret = credentialStore.getClientSecret();
 
         try {
             TokenRefresher refresher = tokenRefresher != null ? tokenRefresher : new TokenRefresher(insecure);
-            RefreshResult result = refresher.refresh(refreshToken, authServerUrl, clientId, realm);
+            RefreshResult result = refresher.refresh(refreshToken, authServerUrl, clientId, clientSecret, realm);
 
             credentialStore.storeApiToken(result.getAccessToken());
             credentialStore.storeRefreshToken(result.getRefreshToken());
@@ -182,7 +185,7 @@ public class AuthToken extends BaseCommand {
 
             return true;
         } catch (TokenRefresher.TokenRefreshException e) {
-            printer.printWarningMessage("Token refresh failed, returning existing token: " + e.getMessage());
+            printer.printWarningMessage("Token refresh failed: " + e.getMessage());
             return false;
         }
     }

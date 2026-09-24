@@ -50,6 +50,17 @@ public class CredentialsShow extends BaseAdminCommand {
                 return EXIT_ERROR;
             }
 
+            if (showSecret && WanakuPrinter.isPlainMode()) {
+                // Script-friendly: SECRET=$(wanaku-keycloak-admin credentials show ... --show-secret --plain)
+                String secret = client.getClientSecret(realm, clientId);
+                if (secret == null) {
+                    printer.printErrorMessage("No secret found for client '" + clientId + "'");
+                    return EXIT_ERROR;
+                }
+                printer.printValue(secret);
+                return EXIT_OK;
+            }
+
             ClientDetail detail = new ClientDetail(
                     stringVal(matched.get("clientId")),
                     stringVal(matched.get("description")),

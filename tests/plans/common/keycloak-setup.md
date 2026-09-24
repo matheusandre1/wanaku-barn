@@ -210,7 +210,7 @@ done
 The Wanaku CLI imports a full realm configuration that includes:
 - The `wanaku` realm with all settings
 - The `wanaku-service` client (confidential, service account enabled)
-- The `wanaku-mcp-router` client (public, for the router)
+- The `wanaku-mcp-router` client (confidential, used by the oauth2-proxy instances and by `wanaku auth login`)
 - The `mcp-client` client (public, for MCP clients)
 - All required roles, scopes, and service accounts
 
@@ -250,7 +250,8 @@ CREDENTIALS_OUTPUT=$(${WANAKU_CLI} admin credentials show \
   --show-secret \
   --plain 2>&1)
 
-export WANAKU_OIDC_SECRET=$(echo "${CREDENTIALS_OUTPUT}" | grep "Client Secret:" | sed 's/.*Client Secret: //')
+# With --show-secret --plain the command writes only the secret to stdout
+export WANAKU_OIDC_SECRET="${CREDENTIALS_OUTPUT}"
 
 if [ -z "${WANAKU_OIDC_SECRET}" ] || [ "${WANAKU_OIDC_SECRET}" = "null" ]; then
   echo "FAIL: could not retrieve OIDC secret"
@@ -258,6 +259,27 @@ if [ -z "${WANAKU_OIDC_SECRET}" ] || [ "${WANAKU_OIDC_SECRET}" = "null" ]; then
   exit 1
 fi
 echo "PASS: OIDC secret retrieved (length: ${#WANAKU_OIDC_SECRET})"
+```
+
+### 8b. Retrieve the wanaku-mcp-router client secret for CLI logins
+
+`wanaku auth login` uses the confidential `wanaku-mcp-router` client, because oauth2-proxy only accepts tokens carrying
+that client's audience. Export its secret so the CLI picks it up through `WANAKU_CLIENT_SECRET`:
+
+```bash
+export WANAKU_CLIENT_SECRET=$(${WANAKU_CLI} admin credentials show \
+  --keycloak-url "${KEYCLOAK_URL}" \
+  --admin-username "${KEYCLOAK_ADMIN_USER}" \
+  --admin-password "${KEYCLOAK_ADMIN_PASS}" \
+  --client-id wanaku-mcp-router \
+  --show-secret \
+  --plain 2>/dev/null)
+
+if [ -z "${WANAKU_CLIENT_SECRET}" ]; then
+  echo "FAIL: could not retrieve the wanaku-mcp-router client secret"
+  exit 1
+fi
+echo "PASS: wanaku-mcp-router secret retrieved (length: ${#WANAKU_CLIENT_SECRET})"
 ```
 
 ### 9. Create the Kubernetes Secret for the operator
@@ -308,11 +330,12 @@ echo "PASS: test user '${WANAKU_TEST_USER}' created"
 
 ### 11. Verify OIDC login
 
-The `wanaku auth login` command authenticates via the router's OIDC proxy endpoint (`/q/oidc/...`) by default.
-When `--realm <realm>` is provided, it uses Keycloak's native discovery path (`/realms/<realm>`) and does not require the router to be deployed.
+The `wanaku auth login` command authenticates directly against Keycloak (`<auth-server>/realms/<realm>`, realm `wanaku`
+by default) using the `wanaku-mcp-router` client and the secret from `WANAKU_CLIENT_SECRET`. The router does not need
+to be deployed for the login itself; the resulting token is what the oauth2-proxy in front of the router accepts.
 
-- For standard router-based authentication, follow [common/oidc-login-verification.md](oidc-login-verification.md) **after the router is created**.
-- For direct Keycloak authentication (no router needed):
+- To verify the token end to end against the router, follow [common/oidc-login-verification.md](oidc-login-verification.md) **after the router is created**.
+- To log in without a router:
 
   ```bash
   echo "${WANAKU_TEST_PASS}" | ${WANAKU_CLI:-wanaku} auth login \
@@ -332,6 +355,7 @@ After completing this procedure, the following variables are set and available f
 | `KEYCLOAK_HOST` | External hostname of Keycloak (from OpenShift Route) |
 | `KEYCLOAK_URL` | Full URL (`http://<host>`) |
 | `WANAKU_OIDC_SECRET` | Client secret for the `wanaku-service` client |
+| `WANAKU_CLIENT_SECRET` | Client secret for the `wanaku-mcp-router` client, read by `wanaku auth login` |
 | `WANAKU_TEST_USER` | Username for authenticated CLI operations (default: `alice`) |
 | `WANAKU_TEST_PASS` | Password for the test user (default: `secretpass`) |
 | `WANAKU_TEST_EMAIL` | Email for the test user (default: `alice@example.com`) |

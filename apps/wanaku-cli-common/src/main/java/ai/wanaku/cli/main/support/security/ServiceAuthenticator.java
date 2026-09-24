@@ -15,6 +15,7 @@ import com.nimbusds.oauth2.sdk.ResourceOwnerPasswordCredentialsGrant;
 import com.nimbusds.oauth2.sdk.TokenErrorResponse;
 import com.nimbusds.oauth2.sdk.TokenRequest;
 import com.nimbusds.oauth2.sdk.TokenResponse;
+import com.nimbusds.oauth2.sdk.auth.ClientSecretBasic;
 import com.nimbusds.oauth2.sdk.auth.Secret;
 import com.nimbusds.oauth2.sdk.http.HTTPRequest;
 import com.nimbusds.oauth2.sdk.id.ClientID;
@@ -56,7 +57,7 @@ public class ServiceAuthenticator {
 
         renewToken(config);
 
-        LOG.info("Received token with a lifetime of {} seconds", accessToken.getLifetime());
+        LOG.debug("Received token with a lifetime of {} seconds", accessToken.getLifetime());
     }
 
     /**
@@ -79,19 +80,21 @@ public class ServiceAuthenticator {
         final URI tokenEndpoint = resolveTokenEndpointUri(config);
         ClientID clientID = new ClientID(config.getClientId());
 
-        TokenRequest request;
+        AuthorizationGrant grant;
         if (refreshToken == null) {
             // Construct the password grant from the username and password
-            AuthorizationGrant passwordGrant =
-                    new ResourceOwnerPasswordCredentialsGrant(config.getUsername(), new Secret(config.getPassword()));
-
-            request = new TokenRequest(tokenEndpoint, clientID, passwordGrant, null);
+            grant = new ResourceOwnerPasswordCredentialsGrant(config.getUsername(), new Secret(config.getPassword()));
         } else {
-            AuthorizationGrant refreshTokenGrant = new RefreshTokenGrant(refreshToken);
-            request = new TokenRequest(tokenEndpoint, clientID, refreshTokenGrant, null);
+            grant = new RefreshTokenGrant(refreshToken);
         }
 
-        return request;
+        String clientSecret = config.getSecret();
+        if (clientSecret != null && !clientSecret.isBlank()) {
+            // Confidential client (e.g. wanaku-mcp-router behind oauth2-proxy): authenticate the client itself
+            return new TokenRequest(
+                    tokenEndpoint, new ClientSecretBasic(clientID, new Secret(clientSecret)), grant, null);
+        }
+        return new TokenRequest(tokenEndpoint, clientID, grant, null);
     }
 
     /*
@@ -187,7 +190,7 @@ public class ServiceAuthenticator {
                 Duration.between(creationTime, Instant.now()).getSeconds();
 
         if (elapsedSeconds >= (accessToken.getLifetime() - 30)) {
-            LOG.info("The token is about to expire. Renewing token to prevent that from happening ...");
+            LOG.debug("The token is about to expire. Renewing token to prevent that from happening ...");
             renewToken(config);
         }
 

@@ -60,7 +60,7 @@ class AuthTokenTest {
 
         TokenRefresher mockRefresher = mock(TokenRefresher.class);
         long newExpiry = Instant.now().getEpochSecond() + 300;
-        when(mockRefresher.refresh(refreshToken, authServerUrl, clientId, null))
+        when(mockRefresher.refresh(refreshToken, authServerUrl, clientId, null, null))
                 .thenReturn(new RefreshResult(newToken, refreshToken, newExpiry));
 
         AuthToken authToken = new AuthToken(credentialStore, mockRefresher);
@@ -77,7 +77,7 @@ class AuthTokenTest {
             WanakuPrinter.setPlainMode(false);
         }
 
-        verify(mockRefresher).refresh(refreshToken, authServerUrl, clientId, null);
+        verify(mockRefresher).refresh(refreshToken, authServerUrl, clientId, null, null);
         assertEquals(newToken, credentialStore.getApiToken());
         assertEquals(newExpiry, credentialStore.getTokenExpiry());
     }
@@ -107,7 +107,7 @@ class AuthTokenTest {
             WanakuPrinter.setPlainMode(false);
         }
 
-        verify(mockRefresher, never()).refresh(any(), any(), any(), any());
+        verify(mockRefresher, never()).refresh(any(), any(), any(), any(), any());
         assertEquals(token, credentialStore.getApiToken());
     }
 
@@ -127,7 +127,7 @@ class AuthTokenTest {
         credentialStore.storeTokenExpiry(Instant.now().getEpochSecond() - 60);
 
         TokenRefresher mockRefresher = mock(TokenRefresher.class);
-        when(mockRefresher.refresh(refreshToken, authServerUrl, clientId, null))
+        when(mockRefresher.refresh(refreshToken, authServerUrl, clientId, null, null))
                 .thenThrow(new TokenRefresher.TokenRefreshException("Refresh failed"));
 
         AuthToken authToken = new AuthToken(credentialStore, mockRefresher);
@@ -140,14 +140,16 @@ class AuthTokenTest {
         try (Terminal terminal = WanakuPrinter.terminalInstance()) {
             WanakuPrinter printer = new WanakuPrinter(null, terminal);
             Integer exitCode = authToken.doCall(terminal, printer);
-            assertEquals(0, exitCode);
+            // No valid token could be produced: the command must fail so that scripts
+            // capturing $(wanaku auth token --get --unmask --plain) can fall back to a re-login.
+            assertEquals(1, exitCode);
         } finally {
             WanakuPrinter.setPlainMode(false);
         }
 
         // The expired token is still in the credential store (not cleared), but
-        // getValidAccessToken returns null so the CLI outputs "No API token is
-        // currently set" instead of the expired token. This lets the test plan's
+        // getValidAccessToken returns null so the CLI prints nothing on stdout and
+        // exits with an error instead of returning the expired token. This lets the test plan's
         // ensure_valid_token helper detect the failure and perform a full re-login.
         assertEquals(oldToken, credentialStore.getApiToken());
     }
@@ -172,7 +174,7 @@ class AuthTokenTest {
 
         TokenRefresher mockRefresher = mock(TokenRefresher.class);
         long newExpiry = Instant.now().getEpochSecond() + 300;
-        when(mockRefresher.refresh(refreshToken, authServerUrl, clientId, realm))
+        when(mockRefresher.refresh(refreshToken, authServerUrl, clientId, null, realm))
                 .thenReturn(new RefreshResult(newToken, refreshToken, newExpiry));
 
         AuthToken authToken = new AuthToken(credentialStore, mockRefresher);
@@ -189,7 +191,7 @@ class AuthTokenTest {
             WanakuPrinter.setPlainMode(false);
         }
 
-        verify(mockRefresher).refresh(refreshToken, authServerUrl, clientId, realm);
+        verify(mockRefresher).refresh(refreshToken, authServerUrl, clientId, null, realm);
         assertEquals(newToken, credentialStore.getApiToken());
     }
 
@@ -217,7 +219,7 @@ class AuthTokenTest {
             WanakuPrinter.setPlainMode(false);
         }
 
-        verify(mockRefresher, never()).refresh(any(), any(), any(), any());
+        verify(mockRefresher, never()).refresh(any(), any(), any(), any(), any());
         assertEquals(token, credentialStore.getApiToken());
     }
 
@@ -276,7 +278,7 @@ class AuthTokenTest {
 
         TokenRefresher mockRefresher = mock(TokenRefresher.class);
         long newExpiry = Instant.now().getEpochSecond() + 300;
-        when(mockRefresher.refresh(refreshToken, authServerUrl, clientId, null))
+        when(mockRefresher.refresh(refreshToken, authServerUrl, clientId, null, null))
                 .thenReturn(new RefreshResult(newToken, refreshToken, newExpiry));
 
         AuthToken authToken = new AuthToken(credentialStore, mockRefresher);
@@ -293,7 +295,7 @@ class AuthTokenTest {
             WanakuPrinter.setPlainMode(false);
         }
 
-        verify(mockRefresher).refresh(refreshToken, authServerUrl, clientId, null);
+        verify(mockRefresher).refresh(refreshToken, authServerUrl, clientId, null, null);
         assertEquals(newToken, credentialStore.getApiToken());
     }
 
