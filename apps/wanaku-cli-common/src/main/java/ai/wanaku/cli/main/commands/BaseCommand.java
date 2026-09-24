@@ -91,7 +91,7 @@ public abstract class BaseCommand implements Callable<Integer> {
     }
 
     protected String getAuthTokenOverride() {
-        return authOptions != null ? authOptions.authTokenOverride : null;
+        return authOptions != null ? authOptions.authTokenOverride.trim() : null;
     }
 
     protected boolean isNoAuth() {
