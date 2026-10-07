@@ -17,6 +17,7 @@ import ai.wanaku.cli.main.commands.namespaces.Namespaces;
 import ai.wanaku.cli.main.commands.prompts.Prompts;
 import ai.wanaku.cli.main.commands.resources.Resources;
 import ai.wanaku.cli.main.commands.service.Service;
+import ai.wanaku.cli.main.commands.skill.Skill;
 import ai.wanaku.cli.main.commands.tools.Tools;
 import ai.wanaku.cli.main.support.WanakuExceptionHandler;
 import ai.wanaku.core.util.VersionHelper;
@@ -37,7 +38,8 @@ import picocli.CommandLine;
             Completion.class,
             DataStores.class,
             Configure.class,
-            Service.class
+            Service.class,
+            Skill.class
         })
 public class CliMain implements Callable<Integer>, QuarkusApplication {
     @Inject
