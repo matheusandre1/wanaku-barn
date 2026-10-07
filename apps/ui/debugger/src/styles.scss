@@ -1,0 +1,92 @@
+@use "@carbon/react" with (
+  $css--font-face: false
+);
+@use "@carbon/react/scss/spacing" as spacing;
+@use "@carbon/react/scss/theme" as theme;
+.wanaku-debugger {
+  padding: spacing.$spacing-07;
+  color: theme.$text-primary;
+  background: theme.$background;
+  h1,
+  h2,
+  p {
+    margin-bottom: spacing.$spacing-05;
+  }
+  h2 {
+    font-size: 1.25rem;
+  }
+  section > *,
+  .cds--accordion__content > * {
+    margin-bottom: spacing.$spacing-05;
+  }
+  pre {
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+    max-height: 32rem;
+    overflow: auto;
+    font-size: 0.875rem;
+  }
+  .debugger-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: spacing.$spacing-03;
+  }
+  .debugger-settings,
+  .debugger-results {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: spacing.$spacing-06;
+  }
+  .debugger-history {
+    display: block;
+    width: 100%;
+    height: auto;
+    overflow-wrap: anywhere;
+    text-align: left;
+  }
+  @media (max-width: 671px) {
+    padding: spacing.$spacing-05;
+    .debugger-settings,
+    .debugger-results {
+      grid-template-columns: 1fr;
+    }
+  }
+}
+
+.wanaku-debugger .debugger-results {
+  display: block;
+  margin-top: spacing.$spacing-07;
+}
+.wanaku-debugger .debugger-history {
+  border-bottom: 1px solid theme.$border-subtle;
+  padding: spacing.$spacing-03 spacing.$spacing-05;
+  min-height: 2.5rem;
+}
+.wanaku-debugger-modal {
+  color: theme.$text-primary;
+  .cds--modal {
+    position: fixed;
+    inset: 0;
+    z-index: 9999;
+  }
+  .cds--modal-container { max-height: 90vh; }
+  .debugger-request-url { overflow-wrap: anywhere; }
+  .cds--modal-content > *,
+  .cds--accordion__content > * { margin-bottom: spacing.$spacing-05; }
+  .debugger-actions { display: flex; flex-wrap: wrap; gap: spacing.$spacing-03; }
+}
+.debugger-code {
+  padding: spacing.$spacing-05;
+  background: theme.$layer-01;
+  border: 1px solid theme.$border-subtle;
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 0.875rem;
+  line-height: 1.5;
+  white-space: pre;
+  max-height: 32rem;
+  overflow: auto;
+  .debugger-json-key { color: theme.$link-primary; }
+  .debugger-json-string { color: theme.$text-primary; }
+  .debugger-json-number { color: theme.$support-info; }
+  .debugger-json-literal { color: theme.$support-error; }
+}

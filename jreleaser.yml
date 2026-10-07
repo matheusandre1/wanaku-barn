@@ -66,6 +66,11 @@ distributions:
       - path: apps/wanaku-barn-backend/target/distributions/wanaku-barn-plugin-{{projectVersion}}.zip
     type: JAVA_BINARY
 
+  wanaku-debugger-plugin:
+    artifacts:
+      - path: apps/ui/debugger/target/distributions/wanaku-debugger-plugin-{{projectVersion}}.zip
+    type: BINARY
+
   cli-native:
     artifacts:
       - path: apps/wanaku-cli/target/distributions/wanaku-cli-{{projectVersion}}-osx-aarch_64.zip

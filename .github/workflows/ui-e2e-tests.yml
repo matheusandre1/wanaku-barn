@@ -124,6 +124,16 @@ jobs:
           sleep 1
         done
 
+    - name: Build Deployment Debugger plugin
+      working-directory: apps/ui/debugger
+      run: |
+        yarn install --frozen-lockfile
+        yarn build:plugin
+
+    - name: Test Deployment Debugger plugin
+      working-directory: tests/e2e/ui
+      run: npx playwright test --config ../debugger/playwright.config.ts
+
     - name: Run Playwright Tests
       working-directory: tests/e2e/ui
       run: npx playwright test
@@ -138,5 +148,6 @@ jobs:
         path: |
           tests/e2e/ui/playwright-report/
           tests/e2e/ui/test-results/
+          tests/e2e/debugger/test-results/
         retention-days: 14
         if-no-files-found: ignore

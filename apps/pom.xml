@@ -19,6 +19,7 @@
         <module>wanaku-jbang</module>
         <module>wanaku-barn-backend</module>
         <module>wanaku-operator</module>
+        <module>ui/debugger</module>
     </modules>
 
 </project>

@@ -1,0 +1,42 @@
+{
+  "name": "wanaku-debugger",
+  "private": true,
+  "version": "0.3.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build:plugin": "tsc -b && vite build --config vite.plugin.config.ts && cp plugin.json plugin-dist/",
+    "test": "node --experimental-strip-types --test tests/*.test.mjs",
+    "lint": "eslint ."
+  },
+  "resolutions": {
+    "fast-uri": "3.1.8",
+    "postcss": "8.5.23"
+  },
+  "dependencies": {
+    "@carbon/icons-react": "^11.86.0",
+    "@carbon/layout": "^11.57.0",
+    "@carbon/react": "^1.114.0",
+    "react": "^19.2.4",
+    "react-dom": "^19.2.4",
+    "react-is": "^19.2.4",
+    "sass": "^1.98.0",
+    "ajv": "^8.17.1"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.39.4",
+    "@types/node": "^22.19.15",
+    "@types/react": "^19.2.14",
+    "@types/react-dom": "^19.2.3",
+    "@vitejs/plugin-react": "^4.7.0",
+    "eslint": "^9.39.4",
+    "eslint-plugin-react-hooks": "^5.2.0",
+    "eslint-plugin-react-refresh": "^0.4.26",
+    "globals": "^15.15.0",
+    "sass-embedded": "^1.98.0",
+    "typescript": "~5.7.3",
+    "typescript-eslint": "^8.57.1",
+    "vite": "^6.4.1"
+  },
+  "packageManager": "yarn@1.22.22"
+}
