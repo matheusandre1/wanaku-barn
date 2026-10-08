@@ -10,6 +10,10 @@ import type {
   DeleteApiV1DataStoreParams,
   DeleteApiV1ServiceTemplateRemoveParams,
   GetApiV1DataStoreParams,
+  GetApiV1KameletsNameKameletYamlParams,
+  GetApiV1KameletsNameParams,
+  GetApiV1SemanticRoutersActionsParams,
+  GetApiV1SemanticRoutersResolveParams,
   GetApiV1ServiceCatalogDownloadParams,
   GetApiV1ServiceCatalogInstructionsParams,
   GetApiV1ServiceCatalogParams,
@@ -17,15 +21,31 @@ import type {
   GetApiV1ServiceTemplateGetParams,
   GetApiV1ServiceTemplateListParams,
   GetApiV1ServiceTemplatePropertiesParams,
+  KameletUpload,
+  SemanticPreviewRequest,
+  SemanticRouterDefinition,
   TemplateInstantiationRequest,
   WanakuResponseDataStore,
   WanakuResponseDeploymentInstructions,
   WanakuResponseInteger,
+  WanakuResponseKameletDefinition,
+  WanakuResponseKameletSummary,
   WanakuResponseListDataStore,
+  WanakuResponseListKameletSummary,
   WanakuResponseListMapStringObject,
+  WanakuResponseListSemanticAction,
+  WanakuResponseListSemanticExpert,
+  WanakuResponseListSemanticPublication,
+  WanakuResponseListSemanticRouterDefinition,
   WanakuResponseListServiceTemplateSummary,
   WanakuResponseMapStringMapStringString,
   WanakuResponseMapStringObject,
+  WanakuResponseMapStringString,
+  WanakuResponseSemanticPreview,
+  WanakuResponseSemanticPublication,
+  WanakuResponseSemanticResolvedPublication,
+  WanakuResponseSemanticRouterDefinition,
+  WanakuResponseSemanticValidation,
   WanakuResponseServerInfo,
   WanakuResponseServiceTemplateDetail,
   WanakuResponseSystemStatistics,
@@ -312,6 +332,279 @@ export const getApiV1DataStoreId = async (
 };
 
 /**
+ * Validate and persist original YAML as an immutable SHA-256 revision. Select the uploaded revision for its name. Identical uploads are idempotent. This operation does not execute YAML or contact external services.
+ * @summary Upload a Kamelet
+ */
+export type postApiV1KameletsResponse200 = {
+  data: WanakuResponseKameletSummary;
+  status: 200;
+};
+
+export type postApiV1KameletsResponse400 = {
+  data: void;
+  status: 400;
+};
+
+export type postApiV1KameletsResponse409 = {
+  data: void;
+  status: 409;
+};
+
+export type postApiV1KameletsResponse422 = {
+  data: void;
+  status: 422;
+};
+
+export type postApiV1KameletsResponseSuccess = postApiV1KameletsResponse200 & {
+  headers: Headers;
+};
+export type postApiV1KameletsResponseError = (
+  | postApiV1KameletsResponse400
+  | postApiV1KameletsResponse409
+  | postApiV1KameletsResponse422
+) & {
+  headers: Headers;
+};
+
+export type postApiV1KameletsResponse =
+  | postApiV1KameletsResponseSuccess
+  | postApiV1KameletsResponseError;
+
+export const getPostApiV1KameletsUrl = () => {
+  return `/api/v1/kamelets`;
+};
+
+export const postApiV1Kamelets = async (
+  kameletUpload: KameletUpload,
+  options?: RequestInit,
+): Promise<postApiV1KameletsResponse> => {
+  return customFetch<postApiV1KameletsResponse>(getPostApiV1KameletsUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(kameletUpload),
+  });
+};
+
+/**
+ * List native Kamelets and their semantic eligibility. Uploaded revisions are available immediately.
+ * @summary List current Kamelets
+ */
+export type getApiV1KameletsResponse200 = {
+  data: WanakuResponseListKameletSummary;
+  status: 200;
+};
+
+export type getApiV1KameletsResponseSuccess = getApiV1KameletsResponse200 & {
+  headers: Headers;
+};
+export type getApiV1KameletsResponse = getApiV1KameletsResponseSuccess;
+
+export const getGetApiV1KameletsUrl = () => {
+  return `/api/v1/kamelets`;
+};
+
+export const getApiV1Kamelets = async (
+  options?: RequestInit,
+): Promise<getApiV1KameletsResponse> => {
+  return customFetch<getApiV1KameletsResponse>(getGetApiV1KameletsUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+/**
+ * Remove an uploaded Kamelet from the current catalog. Retain immutable revisions for saved semantic routes. Bundled and configured definitions cannot be removed.
+ * @summary Remove a current Kamelet selection
+ */
+export type deleteApiV1KameletsNameResponse200 = {
+  data: WanakuResponseVoid;
+  status: 200;
+};
+
+export type deleteApiV1KameletsNameResponse400 = {
+  data: void;
+  status: 400;
+};
+
+export type deleteApiV1KameletsNameResponse404 = {
+  data: void;
+  status: 404;
+};
+
+export type deleteApiV1KameletsNameResponse409 = {
+  data: void;
+  status: 409;
+};
+
+export type deleteApiV1KameletsNameResponseSuccess =
+  deleteApiV1KameletsNameResponse200 & {
+    headers: Headers;
+  };
+export type deleteApiV1KameletsNameResponseError = (
+  | deleteApiV1KameletsNameResponse400
+  | deleteApiV1KameletsNameResponse404
+  | deleteApiV1KameletsNameResponse409
+) & {
+  headers: Headers;
+};
+
+export type deleteApiV1KameletsNameResponse =
+  | deleteApiV1KameletsNameResponseSuccess
+  | deleteApiV1KameletsNameResponseError;
+
+export const getDeleteApiV1KameletsNameUrl = (name: string) => {
+  return `/api/v1/kamelets/${name}`;
+};
+
+export const deleteApiV1KameletsName = async (
+  name: string,
+  options?: RequestInit,
+): Promise<deleteApiV1KameletsNameResponse> => {
+  return customFetch<deleteApiV1KameletsNameResponse>(
+    getDeleteApiV1KameletsNameUrl(name),
+    {
+      ...options,
+      method: "DELETE",
+    },
+  );
+};
+
+/**
+ * Read the current definition or an exact immutable revision. Removed current selections do not remove retained revisions.
+ * @summary Read a Kamelet
+ */
+export type getApiV1KameletsNameResponse200 = {
+  data: WanakuResponseKameletDefinition;
+  status: 200;
+};
+
+export type getApiV1KameletsNameResponse400 = {
+  data: void;
+  status: 400;
+};
+
+export type getApiV1KameletsNameResponse404 = {
+  data: void;
+  status: 404;
+};
+
+export type getApiV1KameletsNameResponseSuccess =
+  getApiV1KameletsNameResponse200 & {
+    headers: Headers;
+  };
+export type getApiV1KameletsNameResponseError = (
+  | getApiV1KameletsNameResponse400
+  | getApiV1KameletsNameResponse404
+) & {
+  headers: Headers;
+};
+
+export type getApiV1KameletsNameResponse =
+  | getApiV1KameletsNameResponseSuccess
+  | getApiV1KameletsNameResponseError;
+
+export const getGetApiV1KameletsNameUrl = (
+  name: string,
+  params?: GetApiV1KameletsNameParams,
+) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? "null" : value.toString());
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0
+    ? `/api/v1/kamelets/${name}?${stringifiedParams}`
+    : `/api/v1/kamelets/${name}`;
+};
+
+export const getApiV1KameletsName = async (
+  name: string,
+  params?: GetApiV1KameletsNameParams,
+  options?: RequestInit,
+): Promise<getApiV1KameletsNameResponse> => {
+  return customFetch<getApiV1KameletsNameResponse>(
+    getGetApiV1KameletsNameUrl(name, params),
+    {
+      ...options,
+      method: "GET",
+    },
+  );
+};
+
+/**
+ * Return original UTF-8 YAML with a SHA-256 ETag. The filename path supports Camel Kamelet resource lookup.
+ * @summary Download native Kamelet YAML
+ */
+export type getApiV1KameletsNameKameletYamlResponse200 = {
+  data: string;
+  status: 200;
+};
+
+export type getApiV1KameletsNameKameletYamlResponse400 = {
+  data: void;
+  status: 400;
+};
+
+export type getApiV1KameletsNameKameletYamlResponse404 = {
+  data: void;
+  status: 404;
+};
+
+export type getApiV1KameletsNameKameletYamlResponseSuccess =
+  getApiV1KameletsNameKameletYamlResponse200 & {
+    headers: Headers;
+  };
+export type getApiV1KameletsNameKameletYamlResponseError = (
+  | getApiV1KameletsNameKameletYamlResponse400
+  | getApiV1KameletsNameKameletYamlResponse404
+) & {
+  headers: Headers;
+};
+
+export type getApiV1KameletsNameKameletYamlResponse =
+  | getApiV1KameletsNameKameletYamlResponseSuccess
+  | getApiV1KameletsNameKameletYamlResponseError;
+
+export const getGetApiV1KameletsNameKameletYamlUrl = (
+  name: string,
+  params?: GetApiV1KameletsNameKameletYamlParams,
+) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? "null" : value.toString());
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0
+    ? `/api/v1/kamelets/${name}.kamelet.yaml?${stringifiedParams}`
+    : `/api/v1/kamelets/${name}.kamelet.yaml`;
+};
+
+export const getApiV1KameletsNameKameletYaml = async (
+  name: string,
+  params?: GetApiV1KameletsNameKameletYamlParams,
+  options?: RequestInit,
+): Promise<getApiV1KameletsNameKameletYamlResponse> => {
+  return customFetch<getApiV1KameletsNameKameletYamlResponse>(
+    getGetApiV1KameletsNameKameletYamlUrl(name, params),
+    {
+      ...options,
+      method: "GET",
+    },
+  );
+};
+
+/**
  * @summary Version
  */
 export type getApiV1ManagementInfoVersionResponse200 = {
@@ -366,6 +659,731 @@ export const getApiV1ManagementStatistics = async (
 ): Promise<getApiV1ManagementStatisticsResponse> => {
   return customFetch<getApiV1ManagementStatisticsResponse>(
     getGetApiV1ManagementStatisticsUrl(),
+    {
+      ...options,
+      method: "GET",
+    },
+  );
+};
+
+/**
+ * List saved router drafts. Publication does not activate a runtime.
+ * @summary List saved router drafts
+ */
+export type getApiV1SemanticRoutersResponse200 = {
+  data: WanakuResponseListSemanticRouterDefinition;
+  status: 200;
+};
+
+export type getApiV1SemanticRoutersResponse400 = {
+  data: void;
+  status: 400;
+};
+
+export type getApiV1SemanticRoutersResponse404 = {
+  data: void;
+  status: 404;
+};
+
+export type getApiV1SemanticRoutersResponseSuccess =
+  getApiV1SemanticRoutersResponse200 & {
+    headers: Headers;
+  };
+export type getApiV1SemanticRoutersResponseError = (
+  | getApiV1SemanticRoutersResponse400
+  | getApiV1SemanticRoutersResponse404
+) & {
+  headers: Headers;
+};
+
+export type getApiV1SemanticRoutersResponse =
+  | getApiV1SemanticRoutersResponseSuccess
+  | getApiV1SemanticRoutersResponseError;
+
+export const getGetApiV1SemanticRoutersUrl = () => {
+  return `/api/v1/semantic-routers`;
+};
+
+export const getApiV1SemanticRouters = async (
+  options?: RequestInit,
+): Promise<getApiV1SemanticRoutersResponse> => {
+  return customFetch<getApiV1SemanticRoutersResponse>(
+    getGetApiV1SemanticRoutersUrl(),
+    {
+      ...options,
+      method: "GET",
+    },
+  );
+};
+
+/**
+ * Save a router draft. Publication does not activate a runtime.
+ * @summary Save a router draft
+ */
+export type postApiV1SemanticRoutersResponse200 = {
+  data: WanakuResponseSemanticRouterDefinition;
+  status: 200;
+};
+
+export type postApiV1SemanticRoutersResponse400 = {
+  data: void;
+  status: 400;
+};
+
+export type postApiV1SemanticRoutersResponse404 = {
+  data: void;
+  status: 404;
+};
+
+export type postApiV1SemanticRoutersResponseSuccess =
+  postApiV1SemanticRoutersResponse200 & {
+    headers: Headers;
+  };
+export type postApiV1SemanticRoutersResponseError = (
+  | postApiV1SemanticRoutersResponse400
+  | postApiV1SemanticRoutersResponse404
+) & {
+  headers: Headers;
+};
+
+export type postApiV1SemanticRoutersResponse =
+  | postApiV1SemanticRoutersResponseSuccess
+  | postApiV1SemanticRoutersResponseError;
+
+export const getPostApiV1SemanticRoutersUrl = () => {
+  return `/api/v1/semantic-routers`;
+};
+
+export const postApiV1SemanticRouters = async (
+  semanticRouterDefinition: SemanticRouterDefinition,
+  options?: RequestInit,
+): Promise<postApiV1SemanticRoutersResponse> => {
+  return customFetch<postApiV1SemanticRoutersResponse>(
+    getPostApiV1SemanticRoutersUrl(),
+    {
+      ...options,
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...options?.headers },
+      body: JSON.stringify(semanticRouterDefinition),
+    },
+  );
+};
+
+/**
+ * List current eligible native Kamelets. With definitionId, include exact historical revisions selected by that saved definition. The current flag identifies current catalog selections.
+ * @summary List eligible curated Kamelet actions
+ */
+export type getApiV1SemanticRoutersActionsResponse200 = {
+  data: WanakuResponseListSemanticAction;
+  status: 200;
+};
+
+export type getApiV1SemanticRoutersActionsResponse400 = {
+  data: void;
+  status: 400;
+};
+
+export type getApiV1SemanticRoutersActionsResponse404 = {
+  data: void;
+  status: 404;
+};
+
+export type getApiV1SemanticRoutersActionsResponseSuccess =
+  getApiV1SemanticRoutersActionsResponse200 & {
+    headers: Headers;
+  };
+export type getApiV1SemanticRoutersActionsResponseError = (
+  | getApiV1SemanticRoutersActionsResponse400
+  | getApiV1SemanticRoutersActionsResponse404
+) & {
+  headers: Headers;
+};
+
+export type getApiV1SemanticRoutersActionsResponse =
+  | getApiV1SemanticRoutersActionsResponseSuccess
+  | getApiV1SemanticRoutersActionsResponseError;
+
+export const getGetApiV1SemanticRoutersActionsUrl = (
+  params?: GetApiV1SemanticRoutersActionsParams,
+) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? "null" : value.toString());
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0
+    ? `/api/v1/semantic-routers/actions?${stringifiedParams}`
+    : `/api/v1/semantic-routers/actions`;
+};
+
+export const getApiV1SemanticRoutersActions = async (
+  params?: GetApiV1SemanticRoutersActionsParams,
+  options?: RequestInit,
+): Promise<getApiV1SemanticRoutersActionsResponse> => {
+  return customFetch<getApiV1SemanticRoutersActionsResponse>(
+    getGetApiV1SemanticRoutersActionsUrl(params),
+    {
+      ...options,
+      method: "GET",
+    },
+  );
+};
+
+/**
+ * List configured expert instances. Publication does not activate a runtime.
+ * @summary List configured expert instances
+ */
+export type getApiV1SemanticRoutersExpertsResponse200 = {
+  data: WanakuResponseListSemanticExpert;
+  status: 200;
+};
+
+export type getApiV1SemanticRoutersExpertsResponse400 = {
+  data: void;
+  status: 400;
+};
+
+export type getApiV1SemanticRoutersExpertsResponse404 = {
+  data: void;
+  status: 404;
+};
+
+export type getApiV1SemanticRoutersExpertsResponseSuccess =
+  getApiV1SemanticRoutersExpertsResponse200 & {
+    headers: Headers;
+  };
+export type getApiV1SemanticRoutersExpertsResponseError = (
+  | getApiV1SemanticRoutersExpertsResponse400
+  | getApiV1SemanticRoutersExpertsResponse404
+) & {
+  headers: Headers;
+};
+
+export type getApiV1SemanticRoutersExpertsResponse =
+  | getApiV1SemanticRoutersExpertsResponseSuccess
+  | getApiV1SemanticRoutersExpertsResponseError;
+
+export const getGetApiV1SemanticRoutersExpertsUrl = () => {
+  return `/api/v1/semantic-routers/experts`;
+};
+
+export const getApiV1SemanticRoutersExperts = async (
+  options?: RequestInit,
+): Promise<getApiV1SemanticRoutersExpertsResponse> => {
+  return customFetch<getApiV1SemanticRoutersExpertsResponse>(
+    getGetApiV1SemanticRoutersExpertsUrl(),
+    {
+      ...options,
+      method: "GET",
+    },
+  );
+};
+
+/**
+ * Generate all catalog files from a complete draft. The catalog name is semantic-preview and the revision is preview. This operation does not save a draft, publish a catalog, activate a runtime, or call an expert.
+ * @summary Inspect generated semantic router files
+ */
+export type postApiV1SemanticRoutersFilesResponse200 = {
+  data: WanakuResponseMapStringString;
+  status: 200;
+};
+
+export type postApiV1SemanticRoutersFilesResponse400 = {
+  data: void;
+  status: 400;
+};
+
+export type postApiV1SemanticRoutersFilesResponse422 = {
+  data: void;
+  status: 422;
+};
+
+export type postApiV1SemanticRoutersFilesResponseSuccess =
+  postApiV1SemanticRoutersFilesResponse200 & {
+    headers: Headers;
+  };
+export type postApiV1SemanticRoutersFilesResponseError = (
+  | postApiV1SemanticRoutersFilesResponse400
+  | postApiV1SemanticRoutersFilesResponse422
+) & {
+  headers: Headers;
+};
+
+export type postApiV1SemanticRoutersFilesResponse =
+  | postApiV1SemanticRoutersFilesResponseSuccess
+  | postApiV1SemanticRoutersFilesResponseError;
+
+export const getPostApiV1SemanticRoutersFilesUrl = () => {
+  return `/api/v1/semantic-routers/files`;
+};
+
+export const postApiV1SemanticRoutersFiles = async (
+  semanticRouterDefinition: SemanticRouterDefinition,
+  options?: RequestInit,
+): Promise<postApiV1SemanticRoutersFilesResponse> => {
+  return customFetch<postApiV1SemanticRoutersFilesResponse>(
+    getPostApiV1SemanticRoutersFilesUrl(),
+    {
+      ...options,
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...options?.headers },
+      body: JSON.stringify(semanticRouterDefinition),
+    },
+  );
+};
+
+/**
+ * Resolve an exact saved name to immutable publication pins and a published expert snapshot. Draft edits do not select a new publication. An explicit revision overrides the current pointer. Legacy records can omit the expert snapshot.
+ * @summary Resolve a published semantic router by name
+ */
+export type getApiV1SemanticRoutersResolveResponse200 = {
+  data: WanakuResponseSemanticResolvedPublication;
+  status: 200;
+};
+
+export type getApiV1SemanticRoutersResolveResponse400 = {
+  data: void;
+  status: 400;
+};
+
+export type getApiV1SemanticRoutersResolveResponse404 = {
+  data: void;
+  status: 404;
+};
+
+export type getApiV1SemanticRoutersResolveResponse409 = {
+  data: void;
+  status: 409;
+};
+
+export type getApiV1SemanticRoutersResolveResponse500 = {
+  data: void;
+  status: 500;
+};
+
+export type getApiV1SemanticRoutersResolveResponseSuccess =
+  getApiV1SemanticRoutersResolveResponse200 & {
+    headers: Headers;
+  };
+export type getApiV1SemanticRoutersResolveResponseError = (
+  | getApiV1SemanticRoutersResolveResponse400
+  | getApiV1SemanticRoutersResolveResponse404
+  | getApiV1SemanticRoutersResolveResponse409
+  | getApiV1SemanticRoutersResolveResponse500
+) & {
+  headers: Headers;
+};
+
+export type getApiV1SemanticRoutersResolveResponse =
+  | getApiV1SemanticRoutersResolveResponseSuccess
+  | getApiV1SemanticRoutersResolveResponseError;
+
+export const getGetApiV1SemanticRoutersResolveUrl = (
+  params: GetApiV1SemanticRoutersResolveParams,
+) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? "null" : value.toString());
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0
+    ? `/api/v1/semantic-routers/resolve?${stringifiedParams}`
+    : `/api/v1/semantic-routers/resolve`;
+};
+
+export const getApiV1SemanticRoutersResolve = async (
+  params: GetApiV1SemanticRoutersResolveParams,
+  options?: RequestInit,
+): Promise<getApiV1SemanticRoutersResolveResponse> => {
+  return customFetch<getApiV1SemanticRoutersResolveResponse>(
+    getGetApiV1SemanticRoutersResolveUrl(params),
+    {
+      ...options,
+      method: "GET",
+    },
+  );
+};
+
+/**
+ * Validate configuration without inference. Publication does not activate a runtime.
+ * @summary Validate configuration without inference
+ */
+export type postApiV1SemanticRoutersValidateResponse200 = {
+  data: WanakuResponseSemanticValidation;
+  status: 200;
+};
+
+export type postApiV1SemanticRoutersValidateResponse400 = {
+  data: void;
+  status: 400;
+};
+
+export type postApiV1SemanticRoutersValidateResponse404 = {
+  data: void;
+  status: 404;
+};
+
+export type postApiV1SemanticRoutersValidateResponseSuccess =
+  postApiV1SemanticRoutersValidateResponse200 & {
+    headers: Headers;
+  };
+export type postApiV1SemanticRoutersValidateResponseError = (
+  | postApiV1SemanticRoutersValidateResponse400
+  | postApiV1SemanticRoutersValidateResponse404
+) & {
+  headers: Headers;
+};
+
+export type postApiV1SemanticRoutersValidateResponse =
+  | postApiV1SemanticRoutersValidateResponseSuccess
+  | postApiV1SemanticRoutersValidateResponseError;
+
+export const getPostApiV1SemanticRoutersValidateUrl = () => {
+  return `/api/v1/semantic-routers/validate`;
+};
+
+export const postApiV1SemanticRoutersValidate = async (
+  semanticRouterDefinition: SemanticRouterDefinition,
+  options?: RequestInit,
+): Promise<postApiV1SemanticRoutersValidateResponse> => {
+  return customFetch<postApiV1SemanticRoutersValidateResponse>(
+    getPostApiV1SemanticRoutersValidateUrl(),
+    {
+      ...options,
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...options?.headers },
+      body: JSON.stringify(semanticRouterDefinition),
+    },
+  );
+};
+
+/**
+ * Update a router draft. Publication does not activate a runtime.
+ * @summary Update a router draft
+ */
+export type putApiV1SemanticRoutersIdResponse200 = {
+  data: WanakuResponseSemanticRouterDefinition;
+  status: 200;
+};
+
+export type putApiV1SemanticRoutersIdResponse400 = {
+  data: void;
+  status: 400;
+};
+
+export type putApiV1SemanticRoutersIdResponse404 = {
+  data: void;
+  status: 404;
+};
+
+export type putApiV1SemanticRoutersIdResponseSuccess =
+  putApiV1SemanticRoutersIdResponse200 & {
+    headers: Headers;
+  };
+export type putApiV1SemanticRoutersIdResponseError = (
+  | putApiV1SemanticRoutersIdResponse400
+  | putApiV1SemanticRoutersIdResponse404
+) & {
+  headers: Headers;
+};
+
+export type putApiV1SemanticRoutersIdResponse =
+  | putApiV1SemanticRoutersIdResponseSuccess
+  | putApiV1SemanticRoutersIdResponseError;
+
+export const getPutApiV1SemanticRoutersIdUrl = (id: string) => {
+  return `/api/v1/semantic-routers/${id}`;
+};
+
+export const putApiV1SemanticRoutersId = async (
+  id: string,
+  semanticRouterDefinition: SemanticRouterDefinition,
+  options?: RequestInit,
+): Promise<putApiV1SemanticRoutersIdResponse> => {
+  return customFetch<putApiV1SemanticRoutersIdResponse>(
+    getPutApiV1SemanticRoutersIdUrl(id),
+    {
+      ...options,
+      method: "PUT",
+      headers: { "Content-Type": "application/json", ...options?.headers },
+      body: JSON.stringify(semanticRouterDefinition),
+    },
+  );
+};
+
+/**
+ * Remove a router draft. Publication does not activate a runtime.
+ * @summary Remove a router draft
+ */
+export type deleteApiV1SemanticRoutersIdResponse200 = {
+  data: WanakuResponseVoid;
+  status: 200;
+};
+
+export type deleteApiV1SemanticRoutersIdResponse400 = {
+  data: void;
+  status: 400;
+};
+
+export type deleteApiV1SemanticRoutersIdResponse404 = {
+  data: void;
+  status: 404;
+};
+
+export type deleteApiV1SemanticRoutersIdResponseSuccess =
+  deleteApiV1SemanticRoutersIdResponse200 & {
+    headers: Headers;
+  };
+export type deleteApiV1SemanticRoutersIdResponseError = (
+  | deleteApiV1SemanticRoutersIdResponse400
+  | deleteApiV1SemanticRoutersIdResponse404
+) & {
+  headers: Headers;
+};
+
+export type deleteApiV1SemanticRoutersIdResponse =
+  | deleteApiV1SemanticRoutersIdResponseSuccess
+  | deleteApiV1SemanticRoutersIdResponseError;
+
+export const getDeleteApiV1SemanticRoutersIdUrl = (id: string) => {
+  return `/api/v1/semantic-routers/${id}`;
+};
+
+export const deleteApiV1SemanticRoutersId = async (
+  id: string,
+  options?: RequestInit,
+): Promise<deleteApiV1SemanticRoutersIdResponse> => {
+  return customFetch<deleteApiV1SemanticRoutersIdResponse>(
+    getDeleteApiV1SemanticRoutersIdUrl(id),
+    {
+      ...options,
+      method: "DELETE",
+    },
+  );
+};
+
+/**
+ * Read a router draft. Publication does not activate a runtime.
+ * @summary Read a router draft
+ */
+export type getApiV1SemanticRoutersIdResponse200 = {
+  data: WanakuResponseSemanticRouterDefinition;
+  status: 200;
+};
+
+export type getApiV1SemanticRoutersIdResponse400 = {
+  data: void;
+  status: 400;
+};
+
+export type getApiV1SemanticRoutersIdResponse404 = {
+  data: void;
+  status: 404;
+};
+
+export type getApiV1SemanticRoutersIdResponseSuccess =
+  getApiV1SemanticRoutersIdResponse200 & {
+    headers: Headers;
+  };
+export type getApiV1SemanticRoutersIdResponseError = (
+  | getApiV1SemanticRoutersIdResponse400
+  | getApiV1SemanticRoutersIdResponse404
+) & {
+  headers: Headers;
+};
+
+export type getApiV1SemanticRoutersIdResponse =
+  | getApiV1SemanticRoutersIdResponseSuccess
+  | getApiV1SemanticRoutersIdResponseError;
+
+export const getGetApiV1SemanticRoutersIdUrl = (id: string) => {
+  return `/api/v1/semantic-routers/${id}`;
+};
+
+export const getApiV1SemanticRoutersId = async (
+  id: string,
+  options?: RequestInit,
+): Promise<getApiV1SemanticRoutersIdResponse> => {
+  return customFetch<getApiV1SemanticRoutersIdResponse>(
+    getGetApiV1SemanticRoutersIdUrl(id),
+    {
+      ...options,
+      method: "GET",
+    },
+  );
+};
+
+/**
+ * Classify without executing actions. Publication does not activate a runtime.
+ * @summary Classify without executing actions
+ */
+export type postApiV1SemanticRoutersIdPreviewResponse200 = {
+  data: WanakuResponseSemanticPreview;
+  status: 200;
+};
+
+export type postApiV1SemanticRoutersIdPreviewResponse400 = {
+  data: void;
+  status: 400;
+};
+
+export type postApiV1SemanticRoutersIdPreviewResponse404 = {
+  data: void;
+  status: 404;
+};
+
+export type postApiV1SemanticRoutersIdPreviewResponse422 = {
+  data: void;
+  status: 422;
+};
+
+export type postApiV1SemanticRoutersIdPreviewResponseSuccess =
+  postApiV1SemanticRoutersIdPreviewResponse200 & {
+    headers: Headers;
+  };
+export type postApiV1SemanticRoutersIdPreviewResponseError = (
+  | postApiV1SemanticRoutersIdPreviewResponse400
+  | postApiV1SemanticRoutersIdPreviewResponse404
+  | postApiV1SemanticRoutersIdPreviewResponse422
+) & {
+  headers: Headers;
+};
+
+export type postApiV1SemanticRoutersIdPreviewResponse =
+  | postApiV1SemanticRoutersIdPreviewResponseSuccess
+  | postApiV1SemanticRoutersIdPreviewResponseError;
+
+export const getPostApiV1SemanticRoutersIdPreviewUrl = (id: string) => {
+  return `/api/v1/semantic-routers/${id}/preview`;
+};
+
+export const postApiV1SemanticRoutersIdPreview = async (
+  id: string,
+  semanticPreviewRequest: SemanticPreviewRequest,
+  options?: RequestInit,
+): Promise<postApiV1SemanticRoutersIdPreviewResponse> => {
+  return customFetch<postApiV1SemanticRoutersIdPreviewResponse>(
+    getPostApiV1SemanticRoutersIdPreviewUrl(id),
+    {
+      ...options,
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...options?.headers },
+      body: JSON.stringify(semanticPreviewRequest),
+    },
+  );
+};
+
+/**
+ * Publish an immutable catalog revision. Publication does not activate a runtime.
+ * @summary Publish an immutable catalog revision
+ */
+export type postApiV1SemanticRoutersIdPublishResponse200 = {
+  data: WanakuResponseSemanticPublication;
+  status: 200;
+};
+
+export type postApiV1SemanticRoutersIdPublishResponse400 = {
+  data: void;
+  status: 400;
+};
+
+export type postApiV1SemanticRoutersIdPublishResponse404 = {
+  data: void;
+  status: 404;
+};
+
+export type postApiV1SemanticRoutersIdPublishResponse422 = {
+  data: void;
+  status: 422;
+};
+
+export type postApiV1SemanticRoutersIdPublishResponseSuccess =
+  postApiV1SemanticRoutersIdPublishResponse200 & {
+    headers: Headers;
+  };
+export type postApiV1SemanticRoutersIdPublishResponseError = (
+  | postApiV1SemanticRoutersIdPublishResponse400
+  | postApiV1SemanticRoutersIdPublishResponse404
+  | postApiV1SemanticRoutersIdPublishResponse422
+) & {
+  headers: Headers;
+};
+
+export type postApiV1SemanticRoutersIdPublishResponse =
+  | postApiV1SemanticRoutersIdPublishResponseSuccess
+  | postApiV1SemanticRoutersIdPublishResponseError;
+
+export const getPostApiV1SemanticRoutersIdPublishUrl = (id: string) => {
+  return `/api/v1/semantic-routers/${id}/publish`;
+};
+
+export const postApiV1SemanticRoutersIdPublish = async (
+  id: string,
+  options?: RequestInit,
+): Promise<postApiV1SemanticRoutersIdPublishResponse> => {
+  return customFetch<postApiV1SemanticRoutersIdPublishResponse>(
+    getPostApiV1SemanticRoutersIdPublishUrl(id),
+    {
+      ...options,
+      method: "POST",
+    },
+  );
+};
+
+/**
+ * List published revisions. Publication does not activate a runtime.
+ * @summary List published revisions
+ */
+export type getApiV1SemanticRoutersIdRevisionsResponse200 = {
+  data: WanakuResponseListSemanticPublication;
+  status: 200;
+};
+
+export type getApiV1SemanticRoutersIdRevisionsResponse400 = {
+  data: void;
+  status: 400;
+};
+
+export type getApiV1SemanticRoutersIdRevisionsResponse404 = {
+  data: void;
+  status: 404;
+};
+
+export type getApiV1SemanticRoutersIdRevisionsResponseSuccess =
+  getApiV1SemanticRoutersIdRevisionsResponse200 & {
+    headers: Headers;
+  };
+export type getApiV1SemanticRoutersIdRevisionsResponseError = (
+  | getApiV1SemanticRoutersIdRevisionsResponse400
+  | getApiV1SemanticRoutersIdRevisionsResponse404
+) & {
+  headers: Headers;
+};
+
+export type getApiV1SemanticRoutersIdRevisionsResponse =
+  | getApiV1SemanticRoutersIdRevisionsResponseSuccess
+  | getApiV1SemanticRoutersIdRevisionsResponseError;
+
+export const getGetApiV1SemanticRoutersIdRevisionsUrl = (id: string) => {
+  return `/api/v1/semantic-routers/${id}/revisions`;
+};
+
+export const getApiV1SemanticRoutersIdRevisions = async (
+  id: string,
+  options?: RequestInit,
+): Promise<getApiV1SemanticRoutersIdRevisionsResponse> => {
+  return customFetch<getApiV1SemanticRoutersIdRevisionsResponse>(
+    getGetApiV1SemanticRoutersIdRevisionsUrl(id),
     {
       ...options,
       method: "GET",

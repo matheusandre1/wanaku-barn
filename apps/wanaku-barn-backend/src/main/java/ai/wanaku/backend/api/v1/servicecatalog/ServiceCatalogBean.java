@@ -105,7 +105,14 @@ public class ServiceCatalogBean {
         }
 
         // Validate ZIP structure by parsing the index
-        ServiceCatalogIndex.fromBase64(dataStore.getData());
+        ServiceCatalogIndex index = ServiceCatalogIndex.fromBase64(dataStore.getData());
+        if (dataStore.getId() != null) {
+            DataStore previous = dataStoreRepository.findById(dataStore.getId());
+            if (previous != null
+                    && previous.getLabels() != null
+                    && "true".equals(previous.getLabels().get("semantic.immutable")))
+                throw new WanakuException("Published semantic catalog revisions cannot be overwritten");
+        }
 
         // Set catalog label
         Map<String, String> labels = dataStore.getLabels();
@@ -118,8 +125,12 @@ public class ServiceCatalogBean {
         dataStore.setLabels(labels);
 
         // Check for existing catalog with same name and remove it
-        DataStore existing = get(dataStore.getName());
+        DataStore existing = get(index.getName());
         if (existing != null) {
+            if (existing.getLabels() != null
+                    && "true".equals(existing.getLabels().get("semantic.immutable"))) {
+                throw new WanakuException("Published semantic catalog revisions cannot be overwritten");
+            }
             LOG.debugf("Replacing existing catalog: %s", dataStore.getName());
             if (!dataStoreRepository.deleteById(existing.getId())) {
                 LOG.warnf("Failed to delete existing catalog before replace: %s", existing.getId());
@@ -141,6 +152,8 @@ public class ServiceCatalogBean {
         if (catalog == null) {
             return 0;
         }
+        if (catalog.getLabels() != null && "true".equals(catalog.getLabels().get("semantic.immutable")))
+            throw new WanakuException("Published semantic catalog revisions are immutable");
         boolean removed = dataStoreRepository.deleteById(catalog.getId());
         return removed ? 1 : 0;
     }

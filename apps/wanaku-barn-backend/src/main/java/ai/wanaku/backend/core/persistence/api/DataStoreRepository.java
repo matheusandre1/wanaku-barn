@@ -12,6 +12,13 @@ import ai.wanaku.capabilities.sdk.api.types.DataStore;
  */
 public interface DataStoreRepository extends LabelAwareInfinispanRepository<DataStore, String> {
     /**
+     * Atomically stores an entry only when its deterministic identifier is absent.
+     * @param dataStore entry with an assigned identifier
+     * @return the existing entry, or null when the entry was stored
+     */
+    DataStore persistIfAbsent(DataStore dataStore);
+
+    /**
      * Find all data stores with the given name.
      *
      * @param name the name to search for

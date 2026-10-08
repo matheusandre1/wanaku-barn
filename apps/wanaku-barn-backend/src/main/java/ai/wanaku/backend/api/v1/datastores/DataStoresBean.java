@@ -43,6 +43,8 @@ public class DataStoresBean extends LabelsAwareWanakuEntityBean<DataStore> {
         if (!dataStoreRepository.findByName(dataStore.getName()).isEmpty()) {
             throw EntityAlreadyExistsException.forName(dataStore.getName());
         }
+        if (dataStore.getId() != null) rejectProtected(dataStoreRepository.findById(dataStore.getId()));
+        rejectProtected(dataStore);
         return dataStoreRepository.persist(dataStore);
     }
 
@@ -61,6 +63,8 @@ public class DataStoresBean extends LabelsAwareWanakuEntityBean<DataStore> {
         if (existing == null) {
             throw new WanakuException("Data store not found with ID: %s".formatted(dataStore.getId()));
         }
+        rejectProtected(existing);
+        rejectProtected(dataStore);
         dataStoreRepository.update(dataStore.getId(), dataStore);
     }
 
@@ -120,6 +124,8 @@ public class DataStoresBean extends LabelsAwareWanakuEntityBean<DataStore> {
      */
     public int removeById(String id) {
         LOG.debugf("Removing data store by ID: %s", id);
+        rejectManagedName(id);
+        rejectImmutable(dataStoreRepository.findById(id));
         boolean removed = dataStoreRepository.deleteById(id);
         return removed ? 1 : 0;
     }
@@ -132,7 +138,60 @@ public class DataStoresBean extends LabelsAwareWanakuEntityBean<DataStore> {
      */
     public int remove(String name) {
         LOG.debugf("Removing data stores by name: %s", name);
-        return removeByName(name);
+        rejectManagedName(name);
+        List<DataStore> snapshot = dataStoreRepository.findByName(name);
+        snapshot.forEach(DataStoresBean::rejectImmutable);
+        return (int) snapshot.stream()
+                .filter(data -> dataStoreRepository.deleteById(data.getId()))
+                .count();
+    }
+
+    /** Rejects generic mutation of semantic authoring records and published artifacts. */
+    private static void rejectProtected(DataStore data) {
+        if (data == null) return;
+        if (managedKameletId(data.getId()) || managedKameletId(data.getName()))
+            throw new EntityAlreadyExistsException("Use the Kamelet catalog API to modify managed Kamelets");
+        if (data.getLabels() == null) return;
+        String type = data.getLabels().get("wanaku.type");
+        if ("kamelet-revision".equals(type) || "kamelet-current".equals(type))
+            throw new EntityAlreadyExistsException("Use the Kamelet catalog API to modify managed Kamelets");
+        if ("semantic-definition".equals(type) || "semantic-publication".equals(type))
+            throw new WanakuException("Use the semantic router API to modify semantic authoring records");
+        rejectImmutable(data);
+    }
+
+    private static void rejectManagedName(String id) {
+        if (managedKameletId(id))
+            throw new EntityAlreadyExistsException("Use the Kamelet catalog API to modify managed Kamelets");
+    }
+
+    private static boolean managedKameletId(String id) {
+        return id != null && (id.startsWith("kamelet-revision-") || id.startsWith("kamelet-current-"));
+    }
+
+    private static void rejectImmutable(DataStore data) {
+        if (data != null && (managedKameletId(data.getId()) || managedKameletId(data.getName())))
+            throw new EntityAlreadyExistsException("Use the Kamelet catalog API to modify managed Kamelets");
+        if (data != null
+                && data.getLabels() != null
+                && ("kamelet-revision".equals(data.getLabels().get("wanaku.type"))
+                        || "kamelet-current".equals(data.getLabels().get("wanaku.type"))
+                        || "true".equals(data.getLabels().get("kamelet.immutable"))))
+            throw new EntityAlreadyExistsException("Use the Kamelet catalog API to modify managed Kamelets");
+        if (data != null
+                && data.getLabels() != null
+                && "true".equals(data.getLabels().get("semantic.immutable")))
+            throw new WanakuException("Published semantic catalog revisions are immutable");
+    }
+
+    /** Preserves published revisions during generic bulk removal. */
+    @Override
+    public int removeIf(String expression) {
+        List<DataStore> snapshot = dataStoreRepository.findAllFilterByLabelExpression(expression);
+        snapshot.forEach(DataStoresBean::rejectImmutable);
+        return (int) snapshot.stream()
+                .filter(data -> dataStoreRepository.deleteById(data.getId()))
+                .count();
     }
 
     @Override

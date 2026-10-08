@@ -1,11 +1,13 @@
 export const enum Links {
-  Home = '/',
+  Home = "/",
   DataStores = "/data-stores",
   ServiceCatalog = "/service-catalog",
-  Logout = "/logout"
+  SemanticRouters = "/semantic-routers",
+  Kamelets = "/kamelets",
+  Logout = "/logout",
 }
 
 export const enum ExternalLinks {
-  Home = 'https://wanaku.ai',
-  GitHub = 'https://github.com/wanaku-ai/wanaku',
+  Home = "https://wanaku.ai",
+  GitHub = "https://github.com/wanaku-ai/wanaku",
 }

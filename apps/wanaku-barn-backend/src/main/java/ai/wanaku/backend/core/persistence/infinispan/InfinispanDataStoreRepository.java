@@ -7,6 +7,7 @@ import org.infinispan.commons.api.query.Query;
 import org.infinispan.configuration.cache.Configuration;
 import org.infinispan.manager.EmbeddedCacheManager;
 import ai.wanaku.backend.core.persistence.api.DataStoreRepository;
+import ai.wanaku.capabilities.sdk.api.exceptions.EntityAlreadyExistsException;
 import ai.wanaku.capabilities.sdk.api.types.DataStore;
 
 /**
@@ -36,6 +37,13 @@ public class InfinispanDataStoreRepository extends AbstractLabelAwareInfinispanR
 
     @Override
     public DataStore persist(DataStore entity) {
+        if (entity.getId() != null && entity.getId().startsWith("kamelet-revision-"))
+            throw new EntityAlreadyExistsException("Immutable Kamelet revisions require atomic creation");
+        if (entity.getId() != null
+                && entity.getId().startsWith("kamelet-current-")
+                && (entity.getLabels() == null
+                        || !"kamelet-current".equals(entity.getLabels().get("wanaku.type"))))
+            throw new EntityAlreadyExistsException("Use the Kamelet catalog API to modify current selections");
         try {
             lock.lock();
             if (entity.getId() == null) {
@@ -47,6 +55,14 @@ public class InfinispanDataStoreRepository extends AbstractLabelAwareInfinispanR
             lock.unlock();
         }
         return entity;
+    }
+
+    @Override
+    public DataStore persistIfAbsent(DataStore dataStore) {
+        if (dataStore == null || dataStore.getId() == null)
+            throw new IllegalArgumentException("Atomic persistence requires an assigned data store identifier");
+        Cache<String, DataStore> cache = cacheManager.getCache(entityName());
+        return cache.putIfAbsent(dataStore.getId(), dataStore);
     }
 
     @Override
