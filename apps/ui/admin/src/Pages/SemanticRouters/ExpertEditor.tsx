@@ -33,7 +33,11 @@ export function ExpertEditor({
   );
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const beanInvalid = !/^[A-Za-z][A-Za-z0-9_]{0,63}$/.test(draft.bean ?? "");
+  const beanGuidance =
+    "Start with a letter. Use only letters, digits, and underscores (no hyphens), up to 64 characters.";
   const save = async () => {
+    if (busy || beanInvalid) return;
     setError(null);
     setBusy(true);
     try {
@@ -71,7 +75,7 @@ export function ExpertEditor({
         busy ||
         !draft.id?.trim() ||
         !draft.name?.trim() ||
-        !draft.bean?.trim() ||
+        beanInvalid ||
         !draft.dependency?.trim()
       }
       onRequestSubmit={() => void save()}
@@ -103,17 +107,22 @@ export function ExpertEditor({
         )}
         {(
           [
-            ["id", "Expert ID"],
-            ["name", "Display name"],
-            ["bean", "Camel bean name"],
-            ["dependency", "Implementation dependency"],
+            ["id", "Expert ID", {}],
+            ["name", "Display name", {}],
+            ["bean", "Camel bean name", {
+              invalid: beanInvalid,
+              invalidText: beanGuidance,
+              helperText: beanGuidance,
+            }],
+            ["dependency", "Implementation dependency", {}],
           ] as const
-        ).map(([field, label]) => (
+        ).map(([field, label, validation]) => (
           <TextInput
             key={field}
             id={`expert-${field}`}
             labelText={label}
             value={draft[field] ?? ""}
+            {...validation}
             disabled={busy || (field === "id" && Boolean(expert))}
             onChange={(event: React.ChangeEvent<HTMLInputElement>) =>
               setDraft({ ...draft, [field]: event.target.value })

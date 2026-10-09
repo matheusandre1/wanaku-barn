@@ -389,6 +389,41 @@ test('manage expert templates, duplicate errors, catalog refresh, and referenced
   expect(fixture.experts.has('wolf-defender')).toBe(false);
 });
 
+test('expert bean validation blocks invalid names on create and edit', async ({ page }) => {
+  const fixture = await semanticRouterFixture(page);
+  await page.goto('./#/semantic-routers');
+  await page.getByRole('button', { name: 'Manage experts', exact: true }).click();
+  await page.getByRole('button', { name: 'Add expert', exact: true }).click();
+  await page.getByLabel('Expert ID', { exact: true }).fill('custom-typesafe-expert');
+  const bean = page.getByLabel('Camel bean name', { exact: true });
+  const save = page.getByRole('button', { name: 'Save expert', exact: true });
+  const guidance = 'Start with a letter. Use only letters, digits, and underscores (no hyphens), up to 64 characters.';
+  await expect(bean).toHaveAccessibleDescription(guidance);
+  for (const value of ['custom-typesafe-expert', '1Expert', '_expert', 'a'.repeat(65), ' expert', 'expert ', 'éxpert', '']) {
+    await bean.fill(value);
+    await expect(bean).toHaveAttribute('aria-invalid', 'true');
+    await expect(page.getByText(guidance, { exact: true })).toBeVisible();
+    await expect(save).toBeDisabled();
+  }
+  expect(fixture.expertRequests.filter(request => request.startsWith('POST '))).toHaveLength(0);
+  await bean.fill('custom_typesafe_expert');
+  await expect(bean).not.toHaveAttribute('aria-invalid', 'true');
+  await expect(save).toBeEnabled();
+  await save.click();
+  await expect(page.getByRole('heading', { name: 'TypeSafe AI', exact: true })).toBeVisible();
+  expect(fixture.experts.get('custom-typesafe-expert')?.bean).toBe('custom_typesafe_expert');
+  await page.getByRole('button', { name: 'Edit expert TypeSafe AI', exact: true }).click();
+  await bean.fill('custom-typesafe-expert');
+  await expect(bean).toHaveAttribute('aria-invalid', 'true');
+  await expect(save).toBeDisabled();
+  expect(fixture.expertRequests.filter(request => request.startsWith('PUT '))).toHaveLength(0);
+  await bean.fill(`E${'a'.repeat(61)}_1`);
+  await expect(save).toBeEnabled();
+  await save.click();
+  await expect(page.getByRole('heading', { name: 'TypeSafe AI', exact: true })).toBeVisible();
+  expect(fixture.experts.get('custom-typesafe-expert')?.bean).toHaveLength(64);
+});
+
 test('guard capability filtering, rejected previews, evaluation failures, and polarity', async ({ page }) => {
   const fixture = await semanticRouterFixture(page);
   fixture.experts.set('wolf', { id: 'wolf', name: 'Wolf guard', bean: 'guardExpert', dependency: 'org.apache.camel:camel-wolf-defender:4.23.0-SNAPSHOT', operations: [
