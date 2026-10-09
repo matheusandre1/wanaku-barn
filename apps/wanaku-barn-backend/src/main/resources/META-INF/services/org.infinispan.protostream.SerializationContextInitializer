@@ -1,13 +1,3 @@
 ai.wanaku.backend.core.persistence.infinispan.protostream.schema.DataStoreSchema
-ai.wanaku.backend.core.persistence.infinispan.protostream.schema.ForwardReferenceSchema
-ai.wanaku.backend.core.persistence.infinispan.protostream.schema.PropertySchema
-ai.wanaku.backend.core.persistence.infinispan.protostream.schema.WanakuErrorSchema
-ai.wanaku.backend.core.persistence.infinispan.protostream.schema.ResourceReferenceSchema
-ai.wanaku.backend.core.persistence.infinispan.protostream.schema.ContentSchema
-ai.wanaku.backend.core.persistence.infinispan.protostream.schema.PromptReferenceSchema
-ai.wanaku.backend.core.persistence.infinispan.protostream.schema.InputSchemaSchema
-ai.wanaku.backend.core.persistence.infinispan.protostream.schema.RemoteToolReferenceSchema
-ai.wanaku.backend.core.persistence.infinispan.protostream.schema.ToolReferenceSchema
-ai.wanaku.backend.core.persistence.infinispan.protostream.schema.CodeExecutionTaskSchema
 ai.wanaku.backend.core.persistence.infinispan.protostream.schema.AuditEventSchema
 ai.wanaku.backend.core.persistence.infinispan.protostream.schema.CatalogVersionRecordSchema

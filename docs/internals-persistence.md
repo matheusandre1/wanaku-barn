@@ -493,13 +493,6 @@ public class InfinispanPersistenceConfiguration {
         return new InfinispanDataStoreRepository(cacheManager, configuration);
     }
 
-    @Produces
-    @Singleton
-    ForwardReferenceRepository forwardReferenceRepository() {
-        return new InfinispanForwardReferenceRepository(cacheManager, configuration);
-    }
-
-    // Additional producers for each repository type
 }
 ```
 
@@ -534,14 +527,14 @@ public class DataStoreService {
 
 ```java
 // Find all with specific label
-List<ToolReference> tools = toolRepo.findAllFilterByLabelExpression("category=weather");
+List<DataStore> stores = dataStoreRepo.findAllFilterByLabelExpression("category=weather");
 
 // Complex expression with AND/OR/NOT
-List<ResourceReference> resources = resourceRepo.findAllFilterByLabelExpression(
+List<DataStore> resources = dataStoreRepo.findAllFilterByLabelExpression(
     "(type=file | type=database) & !environment=test");
 
 // Remove by label expression
-int removed = toolRepo.removeIf("deprecated=true & !protected=true");
+int removed = dataStoreRepo.removeIf("deprecated=true & !protected=true");
 ```
 
 ### Bulk Operations
@@ -558,6 +551,8 @@ Map<String, Object> fields = Map.of(
 int count = repository.removeByFields(fields);
 ```
 
+Barn registers persistence schemas only for DataStore, AuditEvent, and CatalogVersionRecord.
+
 ## Directory Structure
 
 The persistence layer is located within the backend module:
@@ -571,8 +566,6 @@ apps/wanaku-barn-backend/src/main/java/ai/wanaku/backend/core/persistence/
 │   ├── AbstractLabelAwareInfinispanRepository.java
 │   ├── Infinispan{Domain}Repository.java
 │   ├── InfinispanPersistenceConfiguration.java
-│   ├── codeexecution/
-│   │   └── InfinispanCodeTaskRepository.java
 │   ├── providers/
 │   │   └── InfinispanConfigurationProvider.java
 │   └── protostream/

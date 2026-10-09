@@ -14,11 +14,7 @@ import org.infinispan.configuration.global.GlobalConfigurationBuilder;
 import org.infinispan.manager.DefaultCacheManager;
 import org.infinispan.protostream.SerializationContextInitializer;
 import ai.wanaku.backend.audit.AuditEvent;
-import ai.wanaku.backend.core.persistence.infinispan.codeexecution.InfinispanCodeTaskRepository;
 import ai.wanaku.capabilities.sdk.api.types.DataStore;
-import ai.wanaku.capabilities.sdk.api.types.execution.CodeExecutionRequest;
-import ai.wanaku.capabilities.sdk.api.types.execution.CodeExecutionStatus;
-import ai.wanaku.capabilities.sdk.api.types.execution.CodeExecutionTask;
 import ai.wanaku.core.services.api.DataStoreRecord;
 
 import org.junit.jupiter.api.Test;
@@ -73,12 +69,6 @@ class FileStoreRestartTest {
             dataStoreId = stored.getId();
             createdAt = stored.getCreatedAt();
 
-            InfinispanCodeTaskRepository tasks = new InfinispanCodeTaskRepository(first, configuration);
-            CodeExecutionTask task =
-                    new CodeExecutionTask("task-1", new CodeExecutionRequest("print(1)"), "jvm", "java");
-            task.setStatus(CodeExecutionStatus.RUNNING);
-            tasks.store(task);
-
             first.defineConfiguration("audit-event", configuration);
             Cache<Long, AuditEvent> audit = first.getCache("audit-event");
             AuditEvent event =
@@ -99,12 +89,6 @@ class FileStoreRestartTest {
             assertThat(dataStores.findByTypeAndCatalogName("catalog", "restart"))
                     .extracting(DataStore::getId)
                     .containsExactly(dataStoreId);
-
-            CodeExecutionTask task = new InfinispanCodeTaskRepository(second, configuration)
-                    .findById("task-1")
-                    .orElseThrow();
-            assertThat(task.getRequest().getCode()).isEqualTo("print(1)");
-            assertThat(task.getStatus()).isEqualTo(CodeExecutionStatus.RUNNING);
 
             second.defineConfiguration("audit-event", configuration);
             Cache<Long, AuditEvent> audit = second.getCache("audit-event");
