@@ -11,18 +11,19 @@ Keycloak.
 
 ## Quick Start
 
-The quickest way to run the Classic Wanaku backend locally, without Keycloak, is the no-auth Docker Compose file:
+The quickest way to run Wanaku Barn is to install it as a plugin in Wanaku. It is already listed in the 
+default catalog. When asked for the configuration, provide the address on which Wanaku Barn listens to (<http://localhost:8180>). 
+
+Once installed, select one of the Wanaku Barn backend deliverables from the [releases page](https://github.com/wanaku-ai/wanaku-barn/releases),
+unpack it and launch the process:
 
 ```shell
-docker compose -f deploy/docker-compose/docker-compose-noauth.yml up
+java -jar apps/wanaku-barn-backend/target/quarkus-app/quarkus-run.jar
 ```
 
-Then download the CLI from the **[releases page](https://github.com/wanaku-ai/wanaku/releases)** and unpack it to
-manage the running instance.
+You should see an Extensions menu, with several items. If you select, for instance, Data Stores, you should see:
 
-Access <http://localhost:8080> to enter the dashboard:
-
-![Wanaku Dashboard](docs/imgs/wanaku-dashboard.png)
+![Wanaku Barn Data Stores](docs/imgs/wanaku-data-stores.png)
 
 ### Learn Wanaku
 
