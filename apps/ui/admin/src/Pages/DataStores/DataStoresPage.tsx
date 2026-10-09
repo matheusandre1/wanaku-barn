@@ -1,10 +1,10 @@
 import React, {useEffect, useState} from "react";
-import {InlineLoading, InlineNotification} from "@carbon/react";
+import {DataTableSkeleton, InlineLoading, InlineNotification, Modal} from "@carbon/react";
 import {AddDataStoreModal} from "./AddDataStoreModal";
 import {ViewDataStoreModal} from "./ViewDataStoreModal";
 import {DataStoresTable} from "./DataStoresTable";
 import {useDataStores} from "../../hooks/api/use-data-stores";
-import type {DataStore} from "../../models";
+import type {DataStore, DataStoreRecord} from "../../models";
 
 function prepareDownload(stored: DataStore | undefined, fallbackName?: string): { blob: Blob; filename: string } {
   if (!stored?.data) throw new Error("No data is available for this file.");
@@ -26,11 +26,13 @@ function prepareDownload(stored: DataStore | undefined, fallbackName?: string): 
 }
 
 export const DataStoresPage: React.FC = () => {
-  const [fetchedData, setFetchedData] = useState<DataStore[]>([]);
+  const [fetchedData, setFetchedData] = useState<DataStoreRecord[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
-  const [viewDataStore, setViewDataStore] = useState<DataStore | null>(null);
+  const [viewDataStore, setViewDataStore] = useState<DataStoreRecord | null>(null);
+  const [pendingDelete, setPendingDelete] = useState<DataStoreRecord | null>(null);
+  const [deleting, setDeleting] = useState(false);
   const [downloading, setDownloading] = useState(false);
   const { listDataStores, getDataStore, addDataStore, deleteDataStore } = useDataStores();
 
@@ -38,7 +40,7 @@ export const DataStoresPage: React.FC = () => {
   useEffect(() => {
     listDataStores()
       .then((result) => {
-        setFetchedData((result.data.data as DataStore[]) || []);
+        setFetchedData((result.data.data) || []);
         setIsLoading(false);
       })
       .catch(() => {
@@ -48,7 +50,7 @@ export const DataStoresPage: React.FC = () => {
   }, [listDataStores]);
 
   if (isLoading) {
-    return <div>Loading...</div>;
+    return <DataTableSkeleton columnCount={7} rowCount={5} headers={[]} />;
   }
 
   const handleAddDataStore = async (newDataStore: DataStore) => {
@@ -58,24 +60,27 @@ export const DataStoresPage: React.FC = () => {
       setErrorMessage(null);
 
       // Refresh the list
-      listDataStores().then((result) => {
-        setFetchedData((result.data.data as DataStore[]) || []);
-      });
+      const result = await listDataStores();
+      setFetchedData(result.data.data || []);
     } catch {
       setErrorMessage("Error adding data store. Please try again.");
     }
   };
 
-  const handleDelete = async (id: string) => {
+  const handleDelete = async () => {
+    if (!pendingDelete?.id) return;
+    setDeleting(true);
     try {
-      await deleteDataStore(id);
+      await deleteDataStore(pendingDelete.id, pendingDelete.revision);
+      setPendingDelete(null);
 
       // Refresh the list
-      listDataStores().then((result) => {
-        setFetchedData((result.data.data as DataStore[]) || []);
-      });
+      const result = await listDataStores();
+      setFetchedData(result.data.data || []);
     } catch {
-      setErrorMessage(`Failed to delete data store`);
+      setErrorMessage("Failed to delete data store. The record may have changed; refresh the page and try again.");
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -95,7 +100,7 @@ export const DataStoresPage: React.FC = () => {
       // Let the browser consume the Blob before releasing its URL.
       setTimeout(() => URL.revokeObjectURL(url), 1000);
     } catch (error) {
-      setErrorMessage(`Failed to download file. ${error instanceof Error ? error.message : "Please try again."}`);
+      setErrorMessage(`Failed to download file. ${downloadErrorMessage(error)}`);
     } finally {
       setDownloading(false);
     }
@@ -113,20 +118,22 @@ export const DataStoresPage: React.FC = () => {
       )}
       <h1 className="title">Data Stores</h1>
       <p className="description">
-        Manage stored data files. Download published semantic catalogs as ZIP files
-        and semantic definitions or publication records as JSON files.
+        Inspect stored records, their labels, revisions and audit metadata. View content or download files.
+        Managed catalogs, templates and immutable records must be removed from their feature pages.
       </p>
       {downloading && <InlineLoading description="Preparing download…" />}
       <div id="page-content">
         <DataStoresTable
           dataStores={fetchedData}
-          onDelete={handleDelete}
+          onDelete={setPendingDelete}
           onAdd={() => setIsAddModalOpen(true)}
           onDownload={handleDownload}
           onView={(dataStore) => setViewDataStore(dataStore)}
           downloading={downloading}
         />
       </div>
+      {pendingDelete && <DeleteRecordModal record={pendingDelete} deleting={deleting}
+        onClose={() => setPendingDelete(null)} onDelete={handleDelete} />}
       {isAddModalOpen && (
         <AddDataStoreModal
           onRequestClose={() => setIsAddModalOpen(false)}
@@ -142,3 +149,23 @@ export const DataStoresPage: React.FC = () => {
     </div>
   );
 };
+
+interface DeleteRecordModalProps {
+  record: DataStoreRecord;
+  deleting: boolean;
+  onClose: () => void;
+  onDelete: () => void;
+}
+
+function DeleteRecordModal({record, deleting, onClose, onDelete}: DeleteRecordModalProps) {
+  return <Modal open danger modalHeading={`Delete ${record.name || record.id}?`}
+    primaryButtonText={deleting ? "Deleting…" : "Delete"} secondaryButtonText="Cancel"
+    primaryButtonDisabled={deleting} onRequestClose={() => {if (!deleting) onClose();}}
+    onRequestSubmit={onDelete}>
+    <p>This permanently deletes the stored record and its content.</p>
+  </Modal>;
+}
+
+function downloadErrorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : "Please try again.";
+}

@@ -68,3 +68,60 @@ for (const failure of ['missing', 'corrupt', 'api-error']) {
     expect(downloads).toBe(0);
   });
 }
+
+test('show persisted labels and audit metadata, search and filter stored records', async ({page}) => {
+  const entries = [
+    {id: 'archive-1', name: 'Support catalog', labels: {'wanaku.type': 'catalog', 'service.name': 'support', 'version': 'v2'}, revision: 4, createdAt: '2026-09-01T12:00:00Z', updatedAt: '2026-09-02T12:00:00Z', createdBy: 'alice', updatedBy: 'bob', data: 'UEsDBAA='},
+    {id: 'legacy-1', name: 'Legacy upload', labels: {'team': 'billing'}, revision: 0, data: Buffer.from('Hello café').toString('base64')},
+  ];
+  await page.route('**/api/v1/data-store', route => route.fulfill({json: {data: entries}}));
+  await page.goto('./#/data-stores');
+  const catalog = page.getByRole('row').filter({has: page.getByRole('cell', {name: 'Support catalog', exact: true})});
+  await expect(catalog).toContainText('service.name=support');
+  await expect(catalog.getByRole('cell', {name: '4', exact: true})).toBeVisible();
+  await expect(catalog.getByRole('button', {name: 'Managed record: delete from its feature page'})).toBeDisabled();
+  await catalog.getByRole('button', {name: 'View', exact: true}).click();
+  const dialog = page.getByRole('dialog');
+  await expect(dialog).toContainText('alice');
+  await expect(dialog).toContainText('bob');
+  await expect(dialog).toContainText('service.name');
+  await expect(dialog).toContainText('binary content');
+  await dialog.getByRole('button', {name: 'Close', exact: true}).click();
+  await page.getByPlaceholder('Search names, IDs, labels or actors').fill('billing');
+  await expect(page.getByRole('cell', {name: 'Legacy upload', exact: true})).toBeVisible();
+  await expect(page.getByRole('cell', {name: 'Support catalog', exact: true})).toHaveCount(0);
+  await expect(page.getByRole('cell', {name: '0', exact: true})).toBeVisible();
+  await page.getByLabel('Filter by stored type').selectOption('catalog');
+  await expect(page.getByText('No records match your search and type filter.')).toBeVisible();
+});
+
+for (const revision of [0, 7]) test(`confirm deletion and send persisted revision ${revision}`,  async ({page}) => {
+  const entry = {id: 'upload-1', name: 'Notes', revision, data: Buffer.from('hello').toString('base64')};
+  let deleted = false;
+  await page.route('**/api/v1/data-store**', async route => {
+    if (route.request().method() === 'DELETE') {
+      expect(new URL(route.request().url()).searchParams.get('expectedRevision')).toBe(String(revision));
+      deleted = true;
+      return route.fulfill({json: {data: null}});
+    }
+    return route.fulfill({json: {data: deleted ? [] : [entry]}});
+  });
+  await page.goto('./#/data-stores');
+  await page.getByRole('button', {name: 'Delete', exact: true}).click();
+  expect(deleted).toBe(false);
+  await page.getByRole('dialog').getByRole('button', {name: 'Delete', exact: true}).click();
+  await expect(page.getByText('No stored records. Use "Add Data Store" to upload a file.')).toBeVisible();
+  expect(deleted).toBe(true);
+});
+
+
+test('paginate records and reset pagination when searching', async ({page}) => {
+  const entries = Array.from({length: 12}, (_, index) => ({id: `upload-${index}`, name: `Upload ${index + 1}`}));
+  await page.route('**/api/v1/data-store', route => route.fulfill({json: {data: entries}}));
+  await page.goto('./#/data-stores');
+  await expect(page.getByRole('cell', {name: 'Upload 11', exact: true})).toHaveCount(0);
+  await page.getByRole('button', {name: 'Next page'}).click();
+  await expect(page.getByRole('cell', {name: 'Upload 11', exact: true})).toBeVisible();
+  await page.getByPlaceholder('Search names, IDs, labels or actors').fill('upload-0');
+  await expect(page.getByRole('cell', {name: 'Upload 1', exact: true})).toBeVisible();
+});

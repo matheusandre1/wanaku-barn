@@ -46,7 +46,7 @@ export const useDataStores = () => {
 
   const deleteDataStore = useCallback(
     (id: string, expectedRevision?: number, options?: RequestInit) => {
-      const params = expectedRevision ? { expectedRevision } : undefined;
+      const params = expectedRevision !== undefined ? { expectedRevision } : undefined;
       return deleteApiV1DataStoreId(id, params, options);
     },
     []

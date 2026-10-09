@@ -1,0 +1,10 @@
+.data-stores {
+  > .cds--form-item { max-width: 24rem; margin-bottom: 1.5rem; }
+  &__scroll { overflow-x: auto; }
+  &__actions { display: flex; }
+  .cds--data-table td { overflow-wrap: anywhere; max-width: 24rem; }
+  .cds--data-table td:last-child { min-width: 9rem; }
+  &__metadata { display: grid; grid-template-columns: minmax(6rem, 1fr) minmax(0, 3fr); gap: .75rem 1rem; margin-bottom: 1.5rem; }
+  &__metadata dd { overflow-wrap: anywhere; }
+  &__content { margin-top: 1rem; padding: 1rem; background: var(--cds-layer-01); border: 1px solid var(--cds-border-subtle); max-height: 25rem; overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; }
+}

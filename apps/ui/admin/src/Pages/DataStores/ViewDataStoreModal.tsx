@@ -1,121 +1,52 @@
-import React, {useEffect, useState} from "react";
-import {Loading, Modal} from "@carbon/react";
-import type {DataStore} from "../../models";
+import React from "react";
+import {InlineNotification, Modal} from "@carbon/react";
+import type {DataStoreRecord} from "../../models";
+import {formatTimestamp, recordType} from "./data-store-display";
+import "./data-stores.scss";
 
 interface ViewDataStoreModalProps {
-  dataStore: DataStore;
+  dataStore: DataStoreRecord;
   onRequestClose: () => void;
 }
 
-export const ViewDataStoreModal: React.FC<ViewDataStoreModalProps> = ({
-  dataStore,
-  onRequestClose,
-}) => {
-  const [decodedContent, setDecodedContent] = useState<string>("");
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+type ContentPreview = {status: "text"; content: string} | {status: "unavailable"; message: string};
 
-  useEffect(() => {
-    // Reset state whenever the data changes to avoid showing stale content
-    setIsLoading(true);
-    setError(null);
-    setDecodedContent("");
-
-    if (!dataStore.data) {
-      setError("No data available");
-      setIsLoading(false);
-      return;
+function previewContent(record: DataStoreRecord): ContentPreview {
+  if (!record.data) return {status: "unavailable", message: "This record has no stored content."};
+  try {
+    const plainJson = ["semantic-definition", "semantic-publication", "semantic-current-publication"].includes(recordType(record));
+    const bytes = plainJson ? undefined : Uint8Array.from(atob(record.data), character => character.charCodeAt(0));
+    // ZIP archives and other binary files are available through Download, rather than rendered as text.
+    const content = bytes ? new TextDecoder("utf-8", {fatal: true}).decode(bytes) : record.data;
+    if (content.includes("\u0000") || content.startsWith("PK\u0003\u0004")) {
+      return {status: "unavailable", message: "This record contains binary content. Download the file to inspect it."};
     }
+    try {return {status: "text", content: JSON.stringify(JSON.parse(content), null, 2)};}
+    catch {return {status: "text", content};}
+  } catch {
+    return {status: "unavailable", message: "A text preview is unavailable for this content. Download the file to inspect it."};
+  }
+}
 
-    try {
-      const type = dataStore.labels?.["wanaku.type"];
-      if (type === "semantic-definition" || type === "semantic-publication" || type === "semantic-current-publication") {
-        setDecodedContent(dataStore.data);
-        setIsLoading(false);
-        return;
-      }
-      // Decode base64 to binary, then use TextDecoder for proper UTF-8 handling
-      const binaryString = atob(dataStore.data);
-      const bytes = new Uint8Array(binaryString.length);
-      for (let i = 0; i < binaryString.length; i++) {
-        bytes[i] = binaryString.charCodeAt(i);
-      }
-      const decoded = new TextDecoder("utf-8").decode(bytes);
-      setDecodedContent(decoded);
-      setIsLoading(false);
-    } catch (err) {
-      console.error("Error decoding data:", err);
-      setError("Failed to decode data. The content may be binary or corrupted.");
-      setIsLoading(false);
-    }
-  }, [dataStore.data, dataStore.labels]);
-
-  // Format content, pretty-printing JSON if valid (single parse attempt)
-  const formatContent = (content: string): string => {
-    try {
-      const parsed = JSON.parse(content);
-      return JSON.stringify(parsed, null, 2);
-    } catch {
-      return content;
-    }
-  };
-
-  return (
-    <Modal
-      open={true}
-      modalHeading={`View Data Store: ${dataStore.name || dataStore.id || "Unknown"}`}
-      passiveModal
-      onRequestClose={onRequestClose}
-      size="lg"
-    >
-      <div style={{ marginBottom: "1rem" }}>
-        <div style={{ marginBottom: "0.5rem" }}>
-          <strong>ID:</strong> {dataStore.id || "N/A"}
-        </div>
-        <div style={{ marginBottom: "1rem" }}>
-          <strong>Name:</strong> {dataStore.name || "N/A"}
-        </div>
-      </div>
-
-      <div>
-        <strong>Contents:</strong>
-        {isLoading ? (
-          <div style={{ display: "flex", justifyContent: "center", padding: "2rem" }}>
-            <Loading description="Loading content..." withOverlay={false} />
-          </div>
-        ) : error ? (
-          <div
-            style={{
-              color: "var(--cds-text-error)",
-              fontSize: "0.875rem",
-              marginTop: "0.5rem",
-              padding: "1rem",
-              backgroundColor: "var(--cds-notification-background-error)",
-              border: "1px solid var(--cds-support-error)",
-            }}
-          >
-            {error}
-          </div>
-        ) : (
-          <pre
-            style={{
-              marginTop: "0.5rem",
-              padding: "1rem",
-              backgroundColor: "var(--cds-layer-01)",
-              border: "1px solid var(--cds-border-subtle)",
-              borderRadius: "4px",
-              overflow: "auto",
-              maxHeight: "400px",
-              fontSize: "0.875rem",
-              fontFamily: "monospace",
-              whiteSpace: "pre-wrap",
-              wordBreak: "break-word",
-            }}
-          >
-            {formatContent(decodedContent)}
-          </pre>
-        )}
-      </div>
-    </Modal>
-  );
+export const ViewDataStoreModal: React.FC<ViewDataStoreModalProps> = ({dataStore, onRequestClose}) => {
+  const preview = previewContent(dataStore);
+  const metadata = [
+    ["ID", dataStore.id || "Not recorded"], ["Name", dataStore.name || "Unnamed record"],
+    ["Stored type", recordType(dataStore)], ["Revision", String(dataStore.revision ?? "Not recorded")],
+    ["Created", formatTimestamp(dataStore.createdAt)], ["Created by", dataStore.createdBy || "Not recorded"],
+    ["Updated", formatTimestamp(dataStore.updatedAt)], ["Updated by", dataStore.updatedBy || "Not recorded"],
+  ];
+  return <Modal open modalHeading={`View Data Store: ${dataStore.name || dataStore.id || "Unknown"}`}
+    passiveModal onRequestClose={onRequestClose} size="lg">
+    <dl className="data-stores__metadata">
+      {metadata.map(([label, value]) => <React.Fragment key={label}><dt>{label}</dt><dd>{value}</dd></React.Fragment>)}
+    </dl>
+    <h3>Stored labels</h3>
+    {Object.keys(dataStore.labels || {}).length === 0 ? <p>No labels stored.</p> :
+      <dl className="data-stores__metadata">{Object.entries(dataStore.labels || {}).map(([key, value]) =>
+        <React.Fragment key={key}><dt>{key}</dt><dd>{value}</dd></React.Fragment>)}</dl>}
+    <h3>Content preview</h3>
+    {preview.status === "text" ? <pre className="data-stores__content">{preview.content}</pre> :
+      <InlineNotification kind="info" title="Preview unavailable" subtitle={preview.message} hideCloseButton />}
+  </Modal>;
 };
