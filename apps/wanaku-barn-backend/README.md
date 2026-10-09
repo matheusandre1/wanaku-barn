@@ -59,7 +59,7 @@ Key configuration properties (see [Configuration Guide](../../docs/configuration
 quarkus.http.port=8080
 
 # Persistence
-wanaku.persistence.infinispan.base-folder=${wanaku.home}/router/
+wanaku.persistence.infinispan.base-folder=${wanaku.home}/barn/
 
 ```
 

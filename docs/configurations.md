@@ -156,9 +156,15 @@ java -Dwanaku.home=/path/to/custom/home -jar quarkus-run.jar
 
 | Directory | Purpose |
 |-----------|---------|
-| `<home>/router/` | Infinispan data store (SoftIndexFileStore) for data stores, service catalogs and templates, catalog versions, audit events. See [Backup, Restore and Upgrade](backup-and-upgrade.md). |
+| `<home>/barn/` | Infinispan data store (SoftIndexFileStore) for data stores, service catalogs and templates, catalog versions, audit events. See [Backup, Restore and Upgrade](backup-and-upgrade.md). |
 | `<home>/local/logs/` | Router log file (`wanaku-router.log`) when running with the `local` Quarkus profile |
 | `<home>/credentials` | CLI credential store (0600 permissions) |
+
+> [!NOTE]
+> Older versions stored the Infinispan data under `<home>/router/`. If you have existing data there, move it to the
+> new location before starting Wanaku Barn (e.g., `mv ~/.wanaku/router ~/.wanaku/barn`), or keep using the old
+> location by setting `wanaku.persistence.infinispan.base-folder=${wanaku.home}/router/`.
+> Docker Compose and operator deployments keep their existing volumes, so no manual migration is needed there.
 
 #### Behavior with direct JVM start
 
@@ -175,7 +181,8 @@ java -Dwanaku.home=/tmp/sysprop-home -jar quarkus-run.jar
 
 | Property                                    | Description                                                                   |
 |---------------------------------------------|-------------------------------------------------------------------------------|
-| `wanaku.persistence.infinispan.base-folder` | Where to store Infinispan files (defaults to `${wanaku.home}/router/`). |
+| `wanaku.persistence.infinispan.base-folder` | Where to store Infinispan files (defaults to `${wanaku.home}/barn/`). |
+| `wanaku.infinispan.max-state-count`         | `10` - The maximum number of historical states to keep for each service.      |
 | `wanaku.persistence.infinispan.max-entries` | `10000` - The maximum number of entries that each cache keeps in memory. With the file store, the other entries stay on disk. |
 | `wanaku.persistence.infinispan.file-store`  | `true` - Stores the caches on disk (SoftIndexFileStore). Set to `false` to keep the data in memory only. |
 
