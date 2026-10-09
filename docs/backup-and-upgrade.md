@@ -13,7 +13,6 @@ Barn stores its data in embedded Infinispan caches. When the file store is enabl
 | Catalog and template versions | Yes | All versions with their content, and the version counters. |
 | Audit events | Optional | The retained audit trail and its sequence number. |
 | Schema version | Yes | The schema version of the data, as the `schemaVersion` field of the archive. |
-| Service discovery state | No | Registered services and their health. Services register again after a restart. |
 | Code execution tasks | No | Short-lived task state. |
 | Forward and prompt references | No | Not used by Barn since the routing engine moved to Wanaku. |
 

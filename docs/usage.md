@@ -445,74 +445,9 @@ and define a password.
 
 ## Installing and Running Downstream MCP Servers
 
-Downstream MCP servers are standalone services that connect to the Wanaku router to provide new functionalities.
-They can be downloaded from the [release page](https://github.com/wanaku-ai/wanaku/releases),
-deployed to OpenShift using the [operator](https://github.com/wanaku-ai/wanaku/tree/main/apps/wanaku-operator) and [containers](https://quay.io/organization/wanaku)
-or built from source.
+Run downstream MCP servers independently and add their MCP endpoints to the [Wanaku](https://github.com/wanaku-ai/wanaku) router using `wanaku forwards add`. See [MCP Forwards](#accessing-other-mcp-servers-mcp-forwards) for commands. Barn manages persistence and service catalogs; Wanaku handles MCP routing.
 
-To run a downstream MCP server, you need to configure it to connect to your Wanaku router instance and authenticate with it.
-This is done by setting a few essential properties.
-
-### Configuring Downstream MCP Servers
-
-You can configure downstream MCP servers using environment variables, system properties on the command line, or by placing an
-`application.properties` file in a `config/` directory next to the service JAR (see the
-[Configuration Basics](configurations.md#configuration-basics) section for details on how Quarkus loads configuration).
-
-Here are the key properties you need to set:
-
-1. Router URI: Each downstream MCP server needs to know where the Wanaku router is located to register itself.
-
-    ```properties
-    wanaku.service.registration.uri=http://localhost:8080
-    ```
-
-2. OIDC Client Credentials: Downstream MCP servers authenticate with the router using OIDC. You must provide the client secret that you previously regenerated in Keycloak.
-
-    ```properties
-    quarkus.oidc-client.credentials.secret=your-client-secret-from-keycloak
-    ```
-
-3. Announce Address (Optional): If the downstream MCP server is running in an environment where its address is not directly accessible by the router (e.g., behind a NAT or in a container), you need to specify the address that the router should use to communicate back to it.
-
-    ```properties
-    wanaku.service.registration.announce-address=your-public-address
-    ```
-
-> [!TIP]
-> You can check the full set of [configuration](configurations.md) available.
-
-### Running a Downstream MCP Server
-
-Once configured, you can run the service from the command line. The following example shows how to run a downstream MCP server while overriding the configuration properties:
-
-```shell
-java -Dwanaku.service.registration.uri=http://<wanaku-router-host>:8080 \
-     -Dquarkus.oidc-client.credentials.secret=<your-client-secret> \
-     -Dwanaku.service.registration.announce-address=<your-public-address> \
-     -jar <service-jar-file>.jar
-```
-
-> [!NOTE]
-> Each downstream MCP server may have its own specific set of configurations. For example, the [Camel Integration Capability for Wanaku](https://wanaku.ai/docs/camel-integration-capability/)
-> requires additional properties to connect to different systems.
-> Always consult the specific documentation for the service you are using for more details.
-
-### Running Archetype-Generated Services Locally (No Authentication)
-
-Services scaffolded with `wanaku services create tool` or `wanaku services create resource` include OIDC authentication by default. When running against a local router in `noauth` mode, the service fails at startup because it tries to contact a non-existent Keycloak server. To run locally without authentication, reaugment the service to disable OIDC, then start it:
-
-```shell
-java -Dquarkus.launch.rebuild=true -Dquarkus.oidc-client.enabled=false -jar target/quarkus-app/quarkus-run.jar
-```
-
-Then start normally (adjust port and router URL as needed):
-
-```shell
-java -Dquarkus.http.port=9010 -Dwanaku.service.registration.uri=http://localhost:8080 -jar target/quarkus-app/quarkus-run.jar
-```
-
-This reaugmentation step is only needed once per build. The augmentation layer change persists until the next `mvn clean package`.
+### Deploying on OpenShift or Kubernetes
 
 #### Prerequisites
 
@@ -1111,14 +1046,6 @@ subcomponent of Wanaku that leverages Apache Camel to exchange data with any sys
 > [!NOTE]
 > Downstream MCP servers were, at some point, also called "capabilities", "downstream services", or "targets". You may still see
 > that terminology used in some places, especially in older documentation.
-
-The registered downstream MCP servers determine what type of tools you may add to the router.
-
-Wanaku classifies downstream MCP servers into the following types:
-
-- `tool-invoker`: these MCP servers provide MCP tools.
-- `resource-provider`: these MCP servers provide MCP resources.
-- `multi-capability`: these MCP servers provide both MCP tools and MCP resources.
 
 ## Managing MCP Tools
 
@@ -2220,158 +2147,7 @@ Currently special arguments:
 
 ## Extending Wanaku: Adding Your Own Downstream MCP Servers
 
-Wanaku leverages [Quarkus](https://quarkus.io/) and [Apache Camel](https://camel.apache.org) to provide connectivity to a vast
-range of services and platforms.
-
-Although we aim to provide a few of them out-of-the box, not all of them will fit all the use cases. For most cases, users
-should rely on the [Camel Integration Capability for Wanaku](https://wanaku.ai/docs/camel-integration-capability/). That service
-leverages Apache Camel which offers more than 300 components capable of talking to any type of system. Users can design
-their integrations using tools such as [Kaoto](https://kaoto.io/) or Karavan and expose the routes as tools or resources using
-that service.
-
-### Adding a New Resource Provider
-
-For cases where the [Camel Integration Capability for Wanaku](https://wanaku.ai/docs/camel-integration-capability/) is
-not sufficient, users can create their own downstream MCP servers.
-
-We try to make it simple for users to create custom services that solve their particular needs.
-
-#### Creating a New Resource Provider
-
-To create a custom resource provider, you can run:
-
-```shell
-mvn -B archetype:generate \
-  -DarchetypeGroupId=ai.wanaku \
-  -DarchetypeArtifactId=wanaku-provider-archetype \
-  -DgroupId=ai.wanaku \
-  -DartifactId=wanaku-provider-y4 \
-  -Dname=Y4
-```
-
-To run the newly created service enter the directory that was created (i.e.,; `cd wanaku-provider-y4`),
-then build the project using Maven (`mvn clean package`).
-
-> [!NOTE]
-> Downstream MCP servers are created, by default, using [Apache Camel](http://camel.apache.org). However, it is possible to create
-> purely Quarkus-based services by adding `-Dwanaku-capability-type=quarkus` to the Maven command.
-
-Then, launch it using:
-
-```shell
-java -Dwanaku.service.registration.uri=http://localhost:8080 -Dquarkus.http.port=9901 ... -jar target/quarkus-app/quarkus-run.jar
-```
-
-You can check if the service was registered correctly by viewing the downstream MCP servers in the admin UI.
-
-> [!IMPORTANT]
-> Remember to set the parameters in the `application.properties` file and also adjust the authentication settings.
-
-#### Adjusting Your Resource Provider
-
-After created, then most of the work is to adjust the auto-generated `Delegate` class to provide the Camel-based URI and, if
-necessary, coerce (convert) the response from its specific type to String.
-
-### Adding a New Tool Service
-
-#### Creating a New Tool Service
-
-To create a custom tool service, you can run:
-
-```shell
-mvn -B archetype:generate \
-  -DarchetypeGroupId=ai.wanaku \
-  -DarchetypeArtifactId=wanaku-tool-service-archetype \
-  -DgroupId=ai.wanaku \
-  -DartifactId=wanaku-tool-service-jms \
-  -Dname=Jms
-```
-
-> [!NOTE]
-> Downstream MCP servers are created, by default, using [Apache Camel](http://camel.apache.org). However, it is possible to create
-> purely Quarkus-based services by adding `-Dwanaku-capability-type=quarkus` to the Maven command.
-
-To run the newly created service enter the directory that was created (i.e.,; `cd wanaku-tool-service-jms`), then build the project using Maven (`mvn clean package`).
-
-Then, launch it using:
-
-```shell
-java -Dwanaku.service.registration.uri=http://localhost:8080 -Dquarkus.http.port=9900 ... -jar target/quarkus-app/quarkus-run.jar
-```
-
-You can check if the service was registered correctly by viewing the downstream MCP servers in the admin UI.
-
-> [!IMPORTANT]
-> Remember to set the parameters in the `application.properties` file and also adjust the authentication settings.
-
-To customize your service, adjust the delegate and client classes.
-
-#### Adjusting Your Tool Service
-
-After created, then most of the work is to adjust the auto-generated `Delegate` and `Client` classes to invoke the service and
-provide the returned response.
-
-In those cases, then you also need to write a class that leverages [Apache Camel's](http://camel.apache.org) `ProducerTemplate`
-and (or, sometimes, both) `ConsumerTemplate` to interact with the system you are implementing connectivity to.
-
-### Adding a New MCP Server
-
-#### Creating a New Mcp server
-
-To create a custom mcp server, you can run:
-
-```shell
-mvn -B archetype:generate \
-  -DarchetypeGroupId=ai.wanaku \
-  -DarchetypeArtifactId=wanaku-mcp-servers-archetype \
-  -DgroupId=ai.wanaku \
-  -DartifactId=wanaku-mcp-servers-s3 \
-  -Dname=S3
-```
-
-To run the newly created service enter the directory that was created (i.e.,; `cd wanaku-mcp-servers-s3`),
-then build the project using Maven (`mvn clean package`).
-
-> [!NOTE]
-> Downstream MCP servers are created, by default, using [Apache Camel](http://camel.apache.org). However, it is possible to create
-> purely Quarkus-based services by adding `-Dwanaku-capability-type=quarkus` to the Maven command.
-
-Then, launch it using:
-
-```shell
-java -Dwanaku.service.registration.uri=http://localhost:8080 -Dquarkus.http.port=9901 ... -jar target/quarkus-app/quarkus-run.jar
-```
-
-You can check if the service was registered correctly using `wanaku forwards list`.
-
-> [!IMPORTANT]
-> Remember to set the parameters in the `application.properties` file.
-
-#### Adjusting Your MCP Server
-
-After created, then most of the work is to adjust the auto-generated `Tool` class to implement the mcp server tool.
-
-### Implementing Services in Other Languages
-
-Wanaku uses MCP for communication between the router and downstream MCP servers.
-Therefore, it's possible to implement services in any language that supports MCP.
-
-<!-- -->
-
-### Adjusting the announcement address
-
-You can adjust the address used to announce to the MCP Router using either (depending on whether using a tool or a resource provider):
-
-- `wanaku.service.registration.announce-address=my-host`
-
-This is particularly helpful when running a downstream MCP server in the cloud, behind a proxy or firewall.
-
-### Adjusting the authentication parameters
-
-- `quarkus.oidc-client.auth-server-url=http://localhost:8543/realms/${auth.realm}` (realm defaults to `wanaku`; configure via `AUTH_REALM`)
-- `quarkus.oidc-client.client-id=wanaku-service`
-- `quarkus.oidc-client.refresh-token-time-skew=1m`
-- `quarkus.oidc-client.credentials.secret=<insert key here>`
+Use the [Wanaku Capabilities Java SDK](https://github.com/wanaku-ai/wanaku-capabilities-java-sdk) to build standalone MCP servers, or implement MCP in another language. Consult the SDK documentation for build and authentication configuration. Deploy the server and add its reachable MCP endpoint to Wanaku with `wanaku forwards add`.
 
 ## Supported/Tested Clients
 
@@ -2381,10 +2157,10 @@ The details below describe how Wanaku MCP router can be used with some prominent
 
 ### Embedded LLMChat for testing
 
-The Wanaku Praxis router includes an embedded LLMChat page for quick testing of tools.
+The Wanaku router includes an embedded LLMChat page for quick testing of tools.
 
 > [!NOTE]
-> The LLMChat feature is part of the [Wanaku Praxis](https://github.com/wanaku-ai/wanaku) admin UI.
+> The LLMChat feature is part of the [Wanaku](https://github.com/wanaku-ai/wanaku) admin UI.
 
 1. Setup LLM - `baseurl`, `api key`, `model`, and extra parameters
 2. Select tools
@@ -2521,7 +2297,7 @@ By using these CLI commands, you can manage resources and tools for your Wanaku 
 ## Troubleshooting
 
 > [!TIP]
-> If you are setting up Wanaku for the first time, see the [First-Run Troubleshooting Guide](troubleshooting.md) for the most common setup issues (authentication, service registration, Docker Compose, SDK, and deployment).
+> If you are setting up Wanaku for the first time, see the [First-Run Troubleshooting Guide](troubleshooting.md) for the most common setup issues (authentication, MCP connections, Docker Compose, SDK, and deployment).
 
 This section provides solutions to common issues you may encounter while using Wanaku.
 
@@ -2579,70 +2355,6 @@ This section provides solutions to common issues you may encounter while using W
    ```
 
 2. Check token lifetime settings in Keycloak if tokens expire too quickly
-
-### Service Registration Issues
-
-#### Downstream MCP servers not appearing in the router
-
-**Symptoms:**
-
-- Services start successfully but don't show up in the admin UI
-- Tools or resources from a service are not available
-
-**Solutions:**
-
-1. Verify the service registration configuration:
-
-   ```shell
-   # In the downstream MCP server application.properties
-   wanaku.service.registration.enabled=true
-   wanaku.service.registration.uri=http://localhost:8080
-   ```
-
-2. Check service logs for registration errors:
-
-   ```shell
-   # Look for registration-related errors
-   grep -i "registration" /path/to/service.log
-   ```
-
-3. Verify network connectivity between the service and router:
-
-   ```shell
-   # From the service host
-   curl http://localhost:8080/q/health
-   ```
-
-4. Check if the service is using the correct OIDC credentials:
-   - Verify `quarkus.oidc-client.credentials.secret` matches the secret in Keycloak
-   - Ensure the `wanaku-service` client exists in Keycloak
-
-5. Check the router backend logs for incoming registration requests
-
-#### Service shows as "offline" or "unhealthy"
-
-**Symptoms:**
-
-- Service appears in the admin UI but marked as offline
-- Intermittent availability
-
-**Solutions:**
-
-1. Verify the service is running:
-
-   ```shell
-   # Check if the port is listening
-   netstat -an | grep 9009
-   ```
-
-2. Check the registration interval and ensure heartbeats are being sent:
-
-   ```shell
-   # In application.properties
-   wanaku.service.registration.interval=10s
-   ```
-
-3. Review service health and ensure it's not crashing or restarting
 
 ### Connection Issues
 
@@ -2866,13 +2578,7 @@ This section provides solutions to common issues you may encounter while using W
    ping <service-host>
    ```
 
-4. Check Infinispan cache performance and consider adjusting:
-
-   ```shell
-   wanaku.persistence.infinispan.max-state-count=10
-   ```
-
-5. For Kubernetes deployments, ensure adequate resource limits:
+4. For Kubernetes deployments, ensure adequate resource limits:
 
    ```yaml
    resources:

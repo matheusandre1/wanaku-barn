@@ -1,10 +1,10 @@
-package ai.wanaku.backend.core.persistence.infinispan.discovery;
+package ai.wanaku.backend.core.persistence.infinispan;
 
 import jakarta.inject.Inject;
 
 import io.quarkus.test.junit.QuarkusTest;
-import ai.wanaku.capabilities.sdk.api.types.discovery.ActivityRecord;
-import ai.wanaku.capabilities.sdk.api.types.discovery.HealthStatus;
+import ai.wanaku.backend.core.persistence.api.PromptReferenceRepository;
+import ai.wanaku.capabilities.sdk.api.types.PromptReference;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -21,38 +21,41 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class RepositoryUpdateSemanticsTest {
 
     @Inject
-    InfinispanServiceRecordRepository repository;
+    PromptReferenceRepository promptRepository;
+
+    InfinispanPromptReferenceRepository repository;
 
     @BeforeEach
     void clean() {
-        repository.deleteAll();
+        repository = (InfinispanPromptReferenceRepository) promptRepository;
+        repository.removeAll();
     }
 
     @Test
     void updateDoesNotCreateMissingEntities() {
-        ActivityRecord record = new ActivityRecord();
+        PromptReference record = new PromptReference();
         record.setId("missing");
 
         assertFalse(repository.update("missing", record));
-        assertFalse(repository.update("missing", (ActivityRecord r) -> r.setHealthStatus(HealthStatus.HEALTHY)));
+        assertFalse(repository.update("missing", (PromptReference r) -> r.setName("updated")));
         assertNull(repository.findById("missing"));
     }
 
     @Test
     void updateReplacesExistingEntities() {
-        repository.upsert("present", r -> r.setHealthStatus(HealthStatus.PENDING));
+        repository.upsert("present", r -> r.setName("initial"));
 
-        assertTrue(repository.update("present", (ActivityRecord r) -> r.setHealthStatus(HealthStatus.HEALTHY)));
-        assertEquals(HealthStatus.HEALTHY, repository.findById("present").getHealthStatus());
+        assertTrue(repository.update("present", (PromptReference r) -> r.setName("updated")));
+        assertEquals("updated", repository.findById("present").getName());
     }
 
     @Test
     void upsertCreatesMissingEntities() {
-        repository.upsert("created", r -> r.setHealthStatus(HealthStatus.PENDING));
+        repository.upsert("created", r -> r.setName("initial"));
 
-        ActivityRecord created = repository.findById("created");
+        PromptReference created = repository.findById("created");
         assertNotNull(created);
         assertEquals("created", created.getId());
-        assertEquals(HealthStatus.PENDING, created.getHealthStatus());
+        assertEquals("initial", created.getName());
     }
 }

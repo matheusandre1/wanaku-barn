@@ -114,7 +114,7 @@ public final class OperatorUtil {
 
     /**
      * Resolves image pull policy with priority:
-     * 1. Component-specific policy (router.imagePullPolicy or capability.imagePullPolicy)
+     * 1. Component-specific policy (router.imagePullPolicy or praxis.imagePullPolicy)
      * 2. Global policy (spec.imagePullPolicy)
      * 3. Default (IfNotPresent)
      *
@@ -142,9 +142,5 @@ public final class OperatorUtil {
      */
     public static String getRouterBaseUrl(String routerRef) {
         return "http://internal-" + routerRef + ":8080";
-    }
-
-    static String getInternalRegistrationUri(String routerRef) {
-        return getRouterBaseUrl(routerRef) + "/";
     }
 }

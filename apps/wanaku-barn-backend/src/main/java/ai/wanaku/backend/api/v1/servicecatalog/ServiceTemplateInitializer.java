@@ -122,12 +122,12 @@ public class ServiceTemplateInitializer {
         auditStore.record(event);
     }
 
-    private byte[] zipDirectory(Path dir) throws IOException {
+    static byte[] zipDirectory(Path dir) throws IOException {
         ByteArrayOutputStream baos = new ByteArrayOutputStream();
         try (ZipOutputStream zos = new ZipOutputStream(baos)) {
             try (var walker = Files.walk(dir)) {
                 walker.filter(Files::isRegularFile).forEach(file -> {
-                    String entryName = dir.relativize(file).toString();
+                    String entryName = dir.relativize(file).toString().replace('\\', '/');
                     try {
                         zos.putNextEntry(new ZipEntry(entryName));
                         Files.copy(file, zos);

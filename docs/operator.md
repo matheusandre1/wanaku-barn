@@ -4,7 +4,7 @@
 
 The Wanaku Operator manages the following custom resource definitions (CRDs):
 
-- **WanakuRouter** — deploys and configures the Wanaku execution proxy: the Praxis engine and,
+- **WanakuRouter** — deploys and configures the Wanaku execution proxy: the Wanaku router engine and,
   optionally, the MCP router
 - **WanakuServiceCatalog** — deploys packaged service catalogs (Camel routes + Wanaku rules) to
   a router
@@ -89,12 +89,12 @@ kubectl logs -n wanaku -l app.kubernetes.io/name=wanaku-operator
 |-------|------|-------------|
 | `spec.imagePullPolicy` | string | Image pull policy applied to the managed workloads |
 | `spec.exposure` | object | How the proxy is exposed (service type / ingress settings) |
-| `spec.router` | object | The MCP router deployment. Set `enabled: true` to deploy the router alongside Praxis |
+| `spec.router` | object | The MCP router deployment. Set `enabled: true` to deploy the router alongside Wanaku |
 | `spec.router.enabled` | bool | Whether the MCP router is deployed (required for `WanakuServiceCatalog`) |
 | `spec.router.image` | string | Container image for the MCP router |
 | `spec.router.env` | list | Extra environment variables (`name`/`value`) for the router |
-| `spec.praxis` | object | The Praxis engine: `image`, `env`, `imagePullPolicy` |
-| `spec.auth` | object | Authentication via oauth2-proxy instances placed in front of Praxis |
+| `spec.praxis` | object | The Wanaku router engine: `image`, `env`, `imagePullPolicy` |
+| `spec.auth` | object | Authentication via oauth2-proxy instances placed in front of Wanaku |
 | `spec.auth.enabled` | bool | Whether the oauth2-proxies are deployed |
 | `spec.auth.issuerUrl` | string | OIDC issuer URL (for example, the Keycloak realm URL) |
 | `spec.auth.clientId` | string | OIDC client ID used by the proxies |

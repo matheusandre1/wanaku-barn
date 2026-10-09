@@ -104,7 +104,7 @@ public interface WanakuRepository<A extends WanakuEntity, C> {
 `AbstractInfinispanRepository` also provides two change operations that take a `Consumer`:
 
 - `update(id, consumer)` - Applies the change to an existing entity. Returns `false` if the entity does not exist.
-- `upsert(id, consumer)` - Creates the entity if it does not exist, then applies the change. The service registry uses this operation to record service activity.
+- `upsert(id, consumer)` - Creates the entity if it does not exist, then applies the change.
 
 ### Label-Aware Repository: LabelAwareInfinispanRepository
 
@@ -573,8 +573,6 @@ apps/wanaku-barn-backend/src/main/java/ai/wanaku/backend/core/persistence/
 │   ├── InfinispanPersistenceConfiguration.java
 │   ├── codeexecution/
 │   │   └── InfinispanCodeTaskRepository.java
-│   ├── discovery/
-│   │   └── InfinispanCapabilitiesRepository.java  # Class name preserved for compatibility
 │   ├── providers/
 │   │   └── InfinispanConfigurationProvider.java
 │   └── protostream/

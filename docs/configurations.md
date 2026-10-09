@@ -94,7 +94,7 @@ For complete details, see the [Quarkus Configuration Guide](https://quarkus.io/g
 
 ## 1. Router Backend
 
-Configuration for the main Wanaku Router Backend (`wanaku-barn-backend`), which orchestrates all services.
+Configuration for the main Wanaku Router Backend (`wanaku-barn-backend`), which provides management and persistence APIs.
 
 ### General & HTTP
 
@@ -156,7 +156,7 @@ java -Dwanaku.home=/path/to/custom/home -jar quarkus-run.jar
 
 | Directory | Purpose |
 |-----------|---------|
-| `<home>/router/` | Infinispan data store (SoftIndexFileStore) for data stores, service catalogs and templates, catalog versions, audit events and the service registry. See [Backup, Restore and Upgrade](backup-and-upgrade.md). |
+| `<home>/router/` | Infinispan data store (SoftIndexFileStore) for data stores, service catalogs and templates, catalog versions, audit events. See [Backup, Restore and Upgrade](backup-and-upgrade.md). |
 | `<home>/local/logs/` | Router log file (`wanaku-router.log`) when running with the `local` Quarkus profile |
 | `<home>/credentials` | CLI credential store (0600 permissions) |
 
@@ -171,22 +171,11 @@ java -Dwanaku.home=/tmp/sysprop-home -jar quarkus-run.jar
 # Uses /tmp/sysprop-home (system property wins)
 ```
 
-### Health Check
-
-These `wanaku.router.health-check.*` properties control the periodic health probing of registered downstream MCP servers.
-
-| Property                                      | Description                                                                |
-|-----------------------------------------------|----------------------------------------------------------------------------|
-| `wanaku.router.health-check.enabled`          | `true` - Enables periodic health checks of registered downstream MCP servers. |
-| `wanaku.router.health-check.interval-seconds` | `60` - The interval in seconds between health check sweeps.                |
-| `wanaku.router.health-check.max-concurrent`   | `10` - The maximum number of concurrent health check probes.               |
-
 ### Persistence (Infinispan)
 
 | Property                                    | Description                                                                   |
 |---------------------------------------------|-------------------------------------------------------------------------------|
 | `wanaku.persistence.infinispan.base-folder` | Where to store Infinispan files (defaults to `${wanaku.home}/router/`). |
-| `wanaku.persistence.infinispan.max-state-count` | `10` - The number of recent states to keep for each registered service. When the list grows past this value, Barn removes the oldest half. This setting does not apply to catalog versions. |
 | `wanaku.persistence.infinispan.max-entries` | `10000` - The maximum number of entries that each cache keeps in memory. With the file store, the other entries stay on disk. |
 | `wanaku.persistence.infinispan.file-store`  | `true` - Stores the caches on disk (SoftIndexFileStore). Set to `false` to keep the data in memory only. |
 
@@ -273,20 +262,6 @@ wanaku.service.exec.allowed-executables=python3,bash,sh
 | `quarkus.http.port` | The HTTP port for the MCP server (e.g., `9000` for `http` service). |
 | `quarkus.http.host` | `0.0.0.0` - Binds the HTTP server to all available network interfaces. |
 
-### Common Service Registration Settings
-
-These `wanaku.service.registration.*` properties are available for all downstream MCP servers to manage their discovery and lifecycle.
-
-| Property                                         | Description                                                                          |
-|--------------------------------------------------|--------------------------------------------------------------------------------------|
-| `wanaku.service.registration.enabled`            | `true` - Enables the service registration feature.                                   |
-| `wanaku.service.registration.uri`                | The URI of the router backend for registration (e.g., `http://localhost:8080`).      |
-| `wanaku.service.registration.interval`           | `10s` - The interval at which the service should ping the router to show it's alive. |
-| `wanaku.service.registration.retries`            | `3` - Number of times to retry a failed registration.                                |
-| `wanaku.service.registration.retry-wait-seconds` | `1` - Seconds to wait before retrying a failed registration.                         |
-| `wanaku.service.registration.delay-seconds`      | `3` - Seconds to delay the initial registration after startup.                       |
-| `wanaku.service.registration.announce-address`   | A custom address to announce to the router, overriding the auto-detected one.        |
-
 ### Secret Encryption
 
 Secrets can be encrypted at rest using AES-256. Set both environment variables to enable:
@@ -359,31 +334,7 @@ quarkus.http.cors.enabled=true
 quarkus.http.cors.origins=http://localhost:3000,https://my-frontend.example.com
 
 wanaku.persistence.infinispan.base-folder=/var/lib/wanaku/data
-wanaku.persistence.infinispan.max-state-count=20
 ```
-
-### Example: Tool Service
-
-```properties
-# application.properties for a tool service
-quarkus.http.host-enabled=true
-quarkus.http.port=9010
-quarkus.http.host=0.0.0.0
-
-wanaku.service.name=my-custom-tool
-wanaku.service.base-uri=custom://
-
-wanaku.service.registration.enabled=true
-wanaku.service.registration.uri=http://wanaku-router:8080
-wanaku.service.registration.interval=15s
-wanaku.service.registration.announce-address=my-custom-tool.example.com:9010
-
-quarkus.oidc-client.auth-server-url=https://keycloak.example.com/realms/wanaku
-quarkus.oidc-client.client-id=wanaku-service
-quarkus.oidc-client.credentials.secret=${WANAKU_SERVICE_SECRET}
-```
-
-> The realm name defaults to `wanaku` and can be configured via the `AUTH_REALM` environment variable or the `auth.realm` property.
 
 ### Example: Enabling Secret Encryption
 

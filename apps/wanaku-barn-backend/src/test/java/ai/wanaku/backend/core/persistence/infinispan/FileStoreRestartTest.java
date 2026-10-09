@@ -1,4 +1,4 @@
-package ai.wanaku.backend.core.persistence.infinispan.discovery;
+package ai.wanaku.backend.core.persistence.infinispan;
 
 import java.nio.file.Path;
 import java.time.Instant;
@@ -14,12 +14,8 @@ import org.infinispan.configuration.global.GlobalConfigurationBuilder;
 import org.infinispan.manager.DefaultCacheManager;
 import org.infinispan.protostream.SerializationContextInitializer;
 import ai.wanaku.backend.audit.AuditEvent;
-import ai.wanaku.backend.core.persistence.infinispan.InfinispanDataStoreRepository;
 import ai.wanaku.backend.core.persistence.infinispan.codeexecution.InfinispanCodeTaskRepository;
 import ai.wanaku.capabilities.sdk.api.types.DataStore;
-import ai.wanaku.capabilities.sdk.api.types.discovery.ActivityRecord;
-import ai.wanaku.capabilities.sdk.api.types.discovery.HealthStatus;
-import ai.wanaku.capabilities.sdk.api.types.discovery.ServiceState;
 import ai.wanaku.capabilities.sdk.api.types.execution.CodeExecutionRequest;
 import ai.wanaku.capabilities.sdk.api.types.execution.CodeExecutionStatus;
 import ai.wanaku.capabilities.sdk.api.types.execution.CodeExecutionTask;
@@ -77,12 +73,6 @@ class FileStoreRestartTest {
             dataStoreId = stored.getId();
             createdAt = stored.getCreatedAt();
 
-            InfinispanServiceRecordRepository activity = new InfinispanServiceRecordRepository(first, configuration);
-            activity.upsert("service-1", record -> {
-                record.setHealthStatus(HealthStatus.HEALTHY);
-                record.getStates().add(ServiceState.newHealthy());
-            });
-
             InfinispanCodeTaskRepository tasks = new InfinispanCodeTaskRepository(first, configuration);
             CodeExecutionTask task =
                     new CodeExecutionTask("task-1", new CodeExecutionRequest("print(1)"), "jvm", "java");
@@ -109,11 +99,6 @@ class FileStoreRestartTest {
             assertThat(dataStores.findByTypeAndCatalogName("catalog", "restart"))
                     .extracting(DataStore::getId)
                     .containsExactly(dataStoreId);
-
-            ActivityRecord activity =
-                    new InfinispanServiceRecordRepository(second, configuration).findById("service-1");
-            assertThat(activity.getHealthStatus()).isEqualTo(HealthStatus.HEALTHY);
-            assertThat(activity.getStates()).hasSize(1);
 
             CodeExecutionTask task = new InfinispanCodeTaskRepository(second, configuration)
                     .findById("task-1")
