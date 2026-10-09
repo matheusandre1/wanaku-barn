@@ -386,11 +386,15 @@ public class KameletParser {
             for (JsonNode property : definition.path("properties")) {
                 Schema schema = SchemaRegistry.withDefaultDialect(SpecificationVersion.DRAFT_7)
                         .getSchema(property.toString(), InputFormat.JSON);
-                if (property.has("default"))
+                if (property.has("default")) {
+                    JsonNode value = property.path("default");
+                    // Camel binds Kamelet parameters as strings, including unquoted YAML scalars.
+                    if ("string".equals(property.path("type").asText()) && (value.isNumber() || value.isBoolean()))
+                        value = com.fasterxml.jackson.databind.node.TextNode.valueOf(value.asText());
                     require(
-                            schema.validate(property.path("default").toString(), InputFormat.JSON)
-                                    .isEmpty(),
+                            schema.validate(value.toString(), InputFormat.JSON).isEmpty(),
                             "Kamelet parameter defaults must match their declared schema");
+                }
             }
         } catch (InvalidPayloadException e) {
             throw e;

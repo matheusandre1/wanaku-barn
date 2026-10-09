@@ -15,6 +15,8 @@ The catalog accepts native source, sink, and action Kamelets. It preserves the u
 
 Names must start with a lowercase letter. They must end with a lowercase letter or digit. Names can contain lowercase letters, digits, and hyphens. The maximum name length is 64 characters.
 
+For string parameters, Barn validates numeric and boolean defaults as their string values. This accepts native Kamelets that declare `type: string` with an unquoted default such as `22`. String constraints still apply, and the uploaded YAML remains unchanged.
+
 ## Use the HTTP API
 
 Upload YAML through JSON. The JSON transport supports the standalone UI and the Wanaku plugin host.
