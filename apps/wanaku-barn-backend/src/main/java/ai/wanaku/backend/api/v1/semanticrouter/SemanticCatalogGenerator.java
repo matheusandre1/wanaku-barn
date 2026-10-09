@@ -19,8 +19,12 @@ import java.util.TreeSet;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 import ai.wanaku.backend.api.v1.semanticrouter.model.SemanticActionSelection;
+import ai.wanaku.backend.api.v1.semanticrouter.model.SemanticExpert;
+import ai.wanaku.backend.api.v1.semanticrouter.model.SemanticPublishedGuard;
 import ai.wanaku.backend.api.v1.semanticrouter.model.SemanticRouterDefinition;
 import ai.wanaku.core.services.api.ServiceCatalogIndex;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.dataformat.yaml.YAMLGenerator;
 import com.fasterxml.jackson.dataformat.yaml.YAMLMapper;
 
@@ -29,6 +33,8 @@ import com.fasterxml.jackson.dataformat.yaml.YAMLMapper;
 public class SemanticCatalogGenerator {
     public static final String CAMEL_VERSION = "4.23.0-SNAPSHOT";
     public static final String CAMEL_BUILD = "20261009.103642";
+    public static final String EXPERTS = "service/experts.json";
+    public static final String GUARD_REJECTION = "Request rejected by semantic guard";
     public static final String MAIN = "service/router.camel.yaml";
 
     @Inject
@@ -38,10 +44,15 @@ public class SemanticCatalogGenerator {
     public byte[] generate(SemanticRouterDefinition definition, String revision, String catalogName) {
         try {
             Map<String, byte[]> entries = new TreeMap<>();
+            SemanticExpert expert = catalog.expert(definition.expertId);
+            SemanticPublishedGuard guard = publishedGuard(definition);
+            ObjectMapper json = new ObjectMapper().enable(SerializationFeature.ORDER_MAP_ENTRIES_BY_KEYS);
+            entries.put(EXPERTS, json.writeValueAsBytes(map("expert", expert, "guard", guard)));
             List<String> kamelets = new ArrayList<>();
             TreeSet<String> dependencies = new TreeSet<>(
                     List.of("camel:core", "camel:direct", "camel:kamelet", "camel:semantic", "camel:ai-tool"));
-            dependencies.add("mvn:" + catalog.expert(definition.expertId).dependency);
+            dependencies.add("mvn:" + expert.dependency);
+            if (guard != null) dependencies.add("mvn:" + guard.expert.dependency);
             Map<String, String> configuration = new TreeMap<>();
             for (SemanticActionSelection selection : definition.actions) {
                 String path = "service/kamelets/" + selection.actionId + ".kamelet.yaml";
@@ -64,8 +75,8 @@ public class SemanticCatalogGenerator {
             YAMLMapper yaml = YAMLMapper.builder()
                     .disable(YAMLGenerator.Feature.WRITE_DOC_START_MARKER)
                     .build();
-            entries.put(MAIN, yaml.writeValueAsBytes(routes(definition, false)));
-            entries.put("service/preview.camel.yaml", yaml.writeValueAsBytes(routes(definition, true)));
+            entries.put(MAIN, yaml.writeValueAsBytes(routes(definition, false, expert, guard)));
+            entries.put("service/preview.camel.yaml", yaml.writeValueAsBytes(routes(definition, true, expert, guard)));
             entries.put("service/dependencies.txt", bytes(String.join("\n", dependencies) + "\n"));
             entries.put("service/service.properties", properties(configuration));
             Map<String, String> manifest = new TreeMap<>();
@@ -78,7 +89,13 @@ public class SemanticCatalogGenerator {
             manifest.put("input.profile", definition.profile);
             manifest.put("tool.name", definition.toolName);
             manifest.put("tool.tags", "wsr-semantic-router");
-            manifest.put("expert.bean", catalog.expert(definition.expertId).bean);
+            manifest.put("expert.bean", expert.bean);
+            manifest.put("experts", EXPERTS);
+            if (guard != null) {
+                manifest.put("guard.expert.bean", guard.expert.bean);
+                manifest.put("guard.operation", guard.operation);
+                manifest.put("guard.rejectWhen", Boolean.toString(guard.rejectWhen));
+            }
             manifest.put("evaluation", "department");
             manifest.put("kamelets", String.join(",", kamelets));
             manifest.put("dependencies", "service/dependencies.txt");
@@ -118,28 +135,64 @@ public class SemanticCatalogGenerator {
     }
 
     /** Uses the same native semantic declaration for classification and production dispatch. */
-    List<Object> routes(SemanticRouterDefinition definition, boolean preview) {
+    private List<Object> routes(
+            SemanticRouterDefinition definition, boolean preview, SemanticExpert expert, SemanticPublishedGuard guard) {
         Map<String, Object> evaluation = map(
                 "operation",
                 "choice",
                 "state",
                 "${body}",
                 "expert",
-                catalog.expert(definition.expertId).bean,
+                expert.bean,
                 "parameters",
                 map("instructions", definition.instructions, "criteria", criteria(definition)));
         List<Object> routes = new ArrayList<>();
-        routes.add(map("semantic", map("evaluation", map("department", evaluation))));
-        routes.add(route(
-                "router-classification",
-                "direct:classify-router",
-                List.of(map(
-                        "setProperty",
-                        map(
-                                "name",
-                                "department",
-                                "expression",
-                                map("language", map("language", "semantic", "expression", "ref:department")))))));
+        Map<String, Object> evaluations = map("department", evaluation);
+        List<Object> classification = new ArrayList<>();
+        if (guard != null) {
+            evaluations.put(
+                    "guard",
+                    map(
+                            "operation",
+                            guard.operation,
+                            "expert",
+                            guard.expert.bean,
+                            "state",
+                            "${body}",
+                            "parameters",
+                            guard.parameters));
+            classification.add(map(
+                    "setProperty",
+                    map(
+                            "name",
+                            "guardVerdict",
+                            "expression",
+                            map("language", map("language", "semantic", "expression", "ref:guard")))));
+            classification.add(map(
+                    "choice",
+                    map(
+                            "when",
+                            List.of(map(
+                                    "simple",
+                                    "${exchangeProperty.guardVerdict} == " + guard.rejectWhen,
+                                    "steps",
+                                    List.of(map(
+                                            "throwException",
+                                            map(
+                                                    "exceptionType",
+                                                    "java.lang.IllegalStateException",
+                                                    "message",
+                                                    GUARD_REJECTION))))))));
+        }
+        classification.add(map(
+                "setProperty",
+                map(
+                        "name",
+                        "department",
+                        "expression",
+                        map("language", map("language", "semantic", "expression", "ref:department")))));
+        routes.add(map("semantic", map("evaluation", evaluations)));
+        routes.add(route("router-classification", "direct:classify-router", classification));
         if (preview) return routes;
         List<Object> branches = new ArrayList<>();
         for (SemanticActionSelection selection : definition.actions) {
@@ -201,6 +254,16 @@ public class SemanticCatalogGenerator {
                                         map("setBody", map("simple", "${header.message}")),
                                         map("to", "direct:dispatch-router"))))));
         return routes;
+    }
+
+    private SemanticPublishedGuard publishedGuard(SemanticRouterDefinition definition) {
+        if (definition.guard == null) return null;
+        SemanticPublishedGuard result = new SemanticPublishedGuard();
+        result.expert = catalog.expert(definition.guard.expertId);
+        result.operation = definition.guard.operation;
+        result.parameters = definition.guard.parameters == null ? Map.of() : definition.guard.parameters;
+        result.rejectWhen = definition.guard.rejectWhen;
+        return result;
     }
 
     /** Returns fixed labels and criteria shared with the isolated native preview service. */

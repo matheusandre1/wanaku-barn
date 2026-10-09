@@ -46,7 +46,7 @@ test('create, validate, preview, publish, reopen, and remove a semantic router',
   await expect(page.getByText(/Runtime status: not observed/)).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Deployment instructions' })).toBeVisible();
   await expect(page.getByText("java -jar wanaku-semantic-router-0.1.0-SNAPSHOT.jar runtime --semantic-route='Support-routing'", { exact: true })).toBeVisible();
-  await expect(page.getByText(/Set TYPESAFE_API_KEY in the runtime environment/)).toBeVisible();
+  await expect(page.getByText(/Configure the published expert bean supportExpert/)).toBeVisible();
   expect(fixture.previews).toHaveLength(3);
   expect([...fixture.definitions.values()][0].examples).toHaveLength(3);
   await page.getByRole('button', { name: 'Close', exact: true }).last().click();
@@ -145,7 +145,7 @@ test('launch guidance quotes the saved route name and stays independent of unsav
   const command = `java -jar wanaku-semantic-router-0.1.0-SNAPSHOT.jar runtime --semantic-route='Support team'"'"'s $(printf unsafe); router'`;
   await expect(published.getByText(command, { exact: true })).toBeVisible();
   await expect(published).not.toContainText('Unsaved-replacement-name');
-  await expect(published).toContainText('Set TYPESAFE_API_KEY in the runtime environment.');
+  await expect(published).toContainText('Configure the published expert bean supportExpert');
   await expect(published).toContainText(`--catalog-revision='${fixture.current.revision}'`);
   await page.getByRole('button', { name: 'Recorded deployment settings', exact: true }).click();
   await expect(published.getByText('OLD_MANUAL_CATALOG_SETTINGS', { exact: true })).toBeVisible();
@@ -274,6 +274,7 @@ test('generated files open by keyboard, select one read-only file at a time, and
   const files = {
     'index.properties': 'catalog.name=semantic-preview',
     'service/dependencies.txt': 'camel:semantic',
+    'service/experts.json': 'supportExpert',
     'service/kamelets/wsr-billing-action.kamelet.yaml': 'name: wsr-billing-action',
     'service/kamelets/wsr-technical-action.kamelet.yaml': 'name: wsr-technical-action',
     'service/preview.camel.yaml': 'direct:classify-router',
@@ -355,4 +356,81 @@ test('generated files are closed and regenerated from fresh unsaved decision edi
   expect(fixture.saves).toHaveLength(0);
   expect(fixture.previews).toHaveLength(0);
   expect(fixture.publishRequests).toHaveLength(0);
+});
+
+test('manage expert templates, duplicate errors, catalog refresh, and referenced deletion', async ({ page }) => {
+  const fixture = await semanticRouterFixture(page);
+  await page.goto('./#/semantic-routers');
+  await page.getByRole('button', { name: 'Manage experts', exact: true }).click();
+  await page.getByRole('button', { name: 'Add expert', exact: true }).click();
+  await page.getByLabel('Expert template', { exact: true }).selectOption('injection');
+  await expect(page.getByLabel('Operations and parameter JSON Schemas')).toHaveValue(/injection/);
+  await page.getByRole('button', { name: 'Save expert', exact: true }).click();
+  await expect(page.getByRole('heading', { name: 'Wolf Defender', exact: true })).toBeVisible();
+  expect(fixture.experts.get('wolf-defender')?.operations?.[0].resultType).toBe('boolean');
+  await page.getByRole('button', { name: 'Edit expert Wolf Defender', exact: true }).click();
+  await page.getByLabel('Display name', { exact: true }).fill('Injection guard');
+  await page.getByRole('button', { name: 'Save expert', exact: true }).click();
+  await expect(page.getByRole('heading', { name: 'Injection guard', exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'Add expert', exact: true }).click();
+  await page.getByLabel('Expert template', { exact: true }).selectOption('injection');
+  await page.getByRole('button', { name: 'Save expert', exact: true }).click();
+  await expect(page.getByText('Expert ID or bean already exists', { exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'Cancel', exact: true }).click();
+  fixture.definitions.set('referenced', { id: 'referenced', name: 'Guarded', guard: { expertId: 'wolf-defender' } });
+  await page.getByRole('button', { name: 'Remove expert Injection guard', exact: true }).click();
+  await page.getByRole('button', { name: 'Remove expert', exact: true }).click();
+  await expect(page.getByText('Expert is referenced by a draft', { exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'Cancel', exact: true }).click();
+  fixture.definitions.clear();
+  await page.getByRole('button', { name: 'Remove expert Injection guard', exact: true }).click();
+  await page.getByRole('button', { name: 'Remove expert', exact: true }).click();
+  await expect(page.getByRole('heading', { name: 'Injection guard', exact: true })).not.toBeVisible();
+  expect(fixture.experts.has('wolf-defender')).toBe(false);
+});
+
+test('guard capability filtering, rejected previews, evaluation failures, and polarity', async ({ page }) => {
+  const fixture = await semanticRouterFixture(page);
+  fixture.experts.set('wolf', { id: 'wolf', name: 'Wolf guard', bean: 'guardExpert', dependency: 'org.apache.camel:camel-wolf-defender:4.23.0-SNAPSHOT', operations: [
+    { name: 'injection', inputTypes: ['text'], resultType: 'boolean', resultMeaning: 'True means injection detected', parameterSchema: { type: 'object', properties: { threshold: { type: 'number', title: 'Threshold' }, context: { type: 'object', title: 'Guard context' } } } },
+  ] });
+  const wizard = new SemanticRoutersPage(page);
+  await wizard.open(); await wizard.identity(); await wizard.actions();
+  await expect(page.getByLabel('Configured expert', { exact: true }).getByRole('option', { name: 'Wolf guard' })).toHaveCount(0);
+  await page.getByLabel('Check an optional guard before classification', { exact: true }).check({ force: true });
+  await page.getByLabel('Guard expert', { exact: true }).selectOption('wolf');
+  await expect(page.getByLabel('Guard operation', { exact: true })).toHaveValue('injection');
+  await page.getByLabel('Threshold', { exact: true }).fill('0.8');
+  await page.getByLabel('Guard context', { exact: true }).fill('{broken');
+  await wizard.decision();
+  await expect(page.getByText('Guard parameters do not match the operation schema', { exact: true }).first()).toBeVisible();
+  await expect(page.getByLabel('Guard context', { exact: true })).toHaveAttribute('aria-invalid', 'true');
+  await page.getByLabel('Guard context', { exact: true }).fill('{"scope":"support"}');
+  await wizard.next();
+  await page.getByRole('button', { name: 'Add example', exact: true }).click();
+  await page.getByLabel('Example 1 message', { exact: true }).fill('injection');
+  await page.getByLabel('Example 1 expected to be blocked', { exact: true }).check({ force: true });
+  await page.getByRole('button', { name: 'Preview example 1', exact: true }).click();
+  await expect(page.getByText('Request blocked by guard', { exact: true })).toBeVisible();
+  await expect(page.getByText('No action matched', { exact: true })).not.toBeVisible();
+  expect([...fixture.definitions.values()][0].guard?.parameters?.threshold).toBe(0.8);
+  await page.getByLabel('Example 1 message', { exact: true }).fill('guard_error');
+  await page.getByRole('button', { name: 'Preview example 1', exact: true }).click();
+  await expect(page.getByText('Guard evaluation failed', { exact: true })).toBeVisible();
+  await expect(page.getByText('Request blocked by guard', { exact: true })).not.toBeVisible();
+  await page.getByRole('button', { name: 'Back', exact: true }).click();
+  await page.getByLabel('Reject request when guard returns', { exact: true }).selectOption('false');
+  await wizard.next();
+  await page.getByLabel('Example 1 message', { exact: true }).fill('ordinary invoice');
+  await page.getByRole('button', { name: 'Preview example 1', exact: true }).click();
+  await expect(page.getByText('Request blocked by guard', { exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'Back', exact: true }).click();
+  await page.getByLabel('Check an optional guard before classification', { exact: true }).uncheck({ force: true });
+  await wizard.next();
+  await expect(page.getByLabel('Example 1 expected to be blocked', { exact: true })).toHaveCount(0);
+  await expect(page.getByLabel('Example 1 expected label', { exact: true })).toBeEnabled();
+  await page.getByLabel('Example 1 expected label', { exact: true }).selectOption('wsr_billing_action');
+  await page.getByRole('button', { name: 'Preview example 1', exact: true }).click();
+  await expect(page.getByText('Expected: wsr_billing_action. Actual: wsr_billing_action.', { exact: true })).toBeVisible();
+  expect([...fixture.definitions.values()][0].examples?.[0].expectedBlocked).toBe(false);
 });

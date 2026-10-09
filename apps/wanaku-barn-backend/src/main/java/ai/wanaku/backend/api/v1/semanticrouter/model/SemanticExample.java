@@ -10,4 +10,7 @@ public class SemanticExample {
 
     @Schema(description = "Expected action label or no_match")
     public String expectedLabel;
+
+    @Schema(description = "Expect guard rejection instead of classification; absent means false", nullable = true)
+    public Boolean expectedBlocked;
 }

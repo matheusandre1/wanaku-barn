@@ -194,6 +194,7 @@ public class DataStoresBean extends LabelsAwareWanakuEntityBean<DataStore> {
     /** Rejects generic mutation of semantic authoring records and published artifacts. */
     private static void rejectProtected(DataStore data) {
         if (data == null) return;
+        rejectExpert(data);
         if (managedKameletId(data.getId()) || managedKameletId(data.getName()))
             throw new EntityAlreadyExistsException("Use the Kamelet catalog API to modify managed Kamelets");
         if (data.getLabels() == null) return;
@@ -206,6 +207,8 @@ public class DataStoresBean extends LabelsAwareWanakuEntityBean<DataStore> {
     }
 
     private static void rejectManagedName(String id) {
+        if (id != null && id.startsWith("semantic-expert-"))
+            throw new WanakuException("Use the semantic expert API to modify experts");
         if (managedKameletId(id))
             throw new EntityAlreadyExistsException("Use the Kamelet catalog API to modify managed Kamelets");
     }
@@ -214,7 +217,17 @@ public class DataStoresBean extends LabelsAwareWanakuEntityBean<DataStore> {
         return id != null && (id.startsWith("kamelet-revision-") || id.startsWith("kamelet-current-"));
     }
 
+    private static void rejectExpert(DataStore data) {
+        if (data == null) return;
+        rejectManagedName(data.getId());
+        rejectManagedName(data.getName());
+        String type = data.getLabels() == null ? null : data.getLabels().get("wanaku.type");
+        if ("semantic-expert".equals(type) || "semantic-expert-initialization".equals(type))
+            throw new WanakuException("Use the semantic expert API to modify experts");
+    }
+
     private static void rejectImmutable(DataStore data) {
+        rejectExpert(data);
         if (data != null && (managedKameletId(data.getId()) || managedKameletId(data.getName())))
             throw new EntityAlreadyExistsException("Use the Kamelet catalog API to modify managed Kamelets");
         if (data != null

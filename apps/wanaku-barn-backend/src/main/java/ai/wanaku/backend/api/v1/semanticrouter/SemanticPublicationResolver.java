@@ -96,7 +96,9 @@ public class SemanticPublicationResolver {
         result.camelVersion = publication.camelVersion;
         result.camelBuild = manifest.getProperty("camel.build");
         result.downloadUrl = publication.downloadUrl;
+        verifySnapshots(publication, manifest, entries);
         result.expert = expert(publication, manifest, entries);
+        result.guard = publication.guard;
         return result;
     }
 
@@ -141,6 +143,45 @@ public class SemanticPublicationResolver {
         return revision;
     }
 
+    private void verifySnapshots(SemanticPublication publication, Properties manifest, Map<String, byte[]> entries) {
+        byte[] snapshot = entries.get(SemanticCatalogGenerator.EXPERTS);
+        if (snapshot == null) {
+            if (publication.guard != null
+                    || manifest.getProperty("guard.expert.bean") != null
+                    || manifest.getProperty("experts") != null)
+                throw new IllegalStateException("Published guard snapshot is unavailable");
+            return;
+        }
+        if (!SemanticCatalogGenerator.EXPERTS.equals(manifest.getProperty("experts")))
+            throw new IllegalStateException("Invalid expert snapshot resource reference");
+        try {
+            var experts = mapper.readTree(snapshot);
+            if (publication.expert != null
+                            && !mapper.valueToTree(publication.expert).equals(experts.get("expert"))
+                    || !mapper.valueToTree(publication.guard).equals(experts.get("guard")))
+                throw new IllegalStateException("Published expert snapshots do not match their archive");
+        } catch (IOException e) {
+            throw new IllegalStateException("Cannot read published expert snapshots", e);
+        }
+        if (publication.guard == null) {
+            if (manifest.getProperty("guard.expert.bean") != null)
+                throw new IllegalStateException("Unexpected published guard");
+            return;
+        }
+        var guard = publication.guard;
+        byte[] dependencies = entries.get(manifest.getProperty("dependencies"));
+        if (!guard.expert.bean.equals(manifest.getProperty("guard.expert.bean"))
+                || !guard.operation.equals(manifest.getProperty("guard.operation"))
+                || !Boolean.toString(guard.rejectWhen).equals(manifest.getProperty("guard.rejectWhen"))
+                || dependencies == null
+                || !new String(dependencies, StandardCharsets.UTF_8)
+                        .lines()
+                        .map(String::strip)
+                        .toList()
+                        .contains("mvn:" + guard.expert.dependency))
+            throw new IllegalStateException("Published guard does not match its archive");
+    }
+
     private SemanticExpert expert(SemanticPublication publication, Properties manifest, Map<String, byte[]> entries) {
         String bean = manifest.getProperty("expert.bean");
         byte[] resource = entries.get(manifest.getProperty("dependencies"));
@@ -153,6 +194,20 @@ public class SemanticPublicationResolver {
             if (!publication.expert.bean.equals(bean) || !dependencies.contains("mvn:" + publication.expert.dependency))
                 throw new IllegalStateException("Published expert snapshot does not match its archive");
             return publication.expert;
+        }
+        byte[] snapshot = entries.get(SemanticCatalogGenerator.EXPERTS);
+        if (snapshot != null) {
+            try {
+                SemanticExpert recovered =
+                        mapper.treeToValue(mapper.readTree(snapshot).get("expert"), SemanticExpert.class);
+                if (recovered == null
+                        || !bean.equals(recovered.bean)
+                        || !dependencies.contains("mvn:" + recovered.dependency))
+                    throw new IllegalStateException("Archived expert does not match its manifest");
+                return recovered;
+            } catch (IOException e) {
+                throw new IllegalStateException("Cannot recover archived expert", e);
+            }
         }
         List<SemanticExpert> matches = catalog.experts().stream()
                 .filter(expert -> expert.bean.equals(bean) && dependencies.contains("mvn:" + expert.dependency))

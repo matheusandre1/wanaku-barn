@@ -4,6 +4,7 @@
  * wanaku-barn-backend API
  * OpenAPI spec version: 0.3.0-SNAPSHOT
  */
+import type { SemanticRouterDefinitionGuard } from "./semanticRouterDefinitionGuard";
 import type { SemanticActionSelection } from "./semanticActionSelection";
 import type { SemanticExample } from "./semanticExample";
 
@@ -28,6 +29,8 @@ export interface SemanticRouterDefinition {
   profile?: string;
   /** Configured expert catalog identifier */
   expertId?: string;
+  /** Optional Boolean guard evaluated before classification */
+  guard?: SemanticRouterDefinitionGuard;
   /** Invocation field supplied to native semantic evaluation */
   semanticInput?: string;
   /** Plain text instructions for native choice evaluation */

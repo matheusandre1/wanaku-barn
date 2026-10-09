@@ -23,6 +23,14 @@ A saved action selection keeps its exact Kamelet revision. When a newer revision
 
 Configuration applies to the deployment. It does not contain per-request arguments. Use `env:VARIABLE` for a credential reference. Native password fields also require this reference format. Do not enter credential values. Do not enter Camel expressions or property placeholders.
 
+## Manage experts
+
+Select **Manage experts** to add, edit, or remove expert metadata. The catalog stores an ID, display name, Camel bean name, implementation dependency, and operations with input types, result type/meaning, and parameter JSON Schema. TypeSafe AI and Wolf Defender templates provide starting points; verify them against the deployed Camel version. Configure credentials, model files, and bean properties in WSR. Catalog changes do not configure runtime beans.
+
+Classifier selection offers text-compatible `choice` operations with instructions and criteria; legacy entries remain available as choice experts. An optional guard evaluates a text-compatible Boolean operation before classification. Choose the rejecting verdict explicitly: true for threat detection, false for approval checks. Parameter fields follow the operation schema. Guard rejection runs neither classification nor destinations; uncertain, malformed, or failed evaluations stop processing.
+
+Experts referenced by editable drafts cannot be deleted. Published revisions retain their expert snapshots. Edit the catalog and republish to create a revision with updated metadata; deploy that revision and restart WSR with every required bean configured.
+
 ## Define the decision
 
 1. Select a configured expert.
@@ -50,7 +58,7 @@ Expert credentials, model settings, timeouts, and limits belong to deployment co
 4. Select **Preview example**.
 5. Compare the expected and actual labels.
 
-A preview saves the current draft. It uses the same definition and expert configuration as production. It sends the native `choice` operation, its instructions and criteria as parameters, and the example message as state. It performs classification only. It does not execute an action. The UI shows evaluation errors separately from no match. It shows evaluation time and diagnostics when the API supplies them.
+A preview saves the current draft. It uses the same definition and expert configuration as production. It sends the native `choice` operation, its instructions and criteria as parameters, and the example message as state. It evaluates the optional guard first and classifies accepted messages. Select **expected to be blocked** for rejected examples; no expected label is needed. It does not execute an action. The UI shows blocked requests and evaluation errors separately from no match. It shows evaluation time and diagnostics when the API supplies them.
 
 Use **Back** to change an earlier step. The wizard retains the entered values and validation errors. Select **Save draft** to keep an incomplete definition. Open the saved definition from the list to continue later.
 

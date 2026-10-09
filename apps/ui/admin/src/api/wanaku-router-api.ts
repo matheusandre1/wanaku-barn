@@ -37,6 +37,7 @@ import type {
   PostApiV1ServiceTemplateRestoreParams,
   PostApiV1ServiceTemplateVersionsActivateParams,
   PutApiV1DataStoreParams,
+  SemanticExpert,
   SemanticPreviewRequest,
   SemanticRouterDefinition,
   TemplateInstantiationRequest,
@@ -64,6 +65,7 @@ import type {
   WanakuResponseMapStringMapStringString,
   WanakuResponseMapStringObject,
   WanakuResponseMapStringString,
+  WanakuResponseSemanticExpert,
   WanakuResponseSemanticPreview,
   WanakuResponseSemanticPublication,
   WanakuResponseSemanticResolvedPublication,
@@ -1169,6 +1171,263 @@ export const getApiV1SemanticRoutersExperts = async (
 ): Promise<getApiV1SemanticRoutersExpertsResponse> => {
   return customFetch<getApiV1SemanticRoutersExpertsResponse>(
     getGetApiV1SemanticRoutersExpertsUrl(),
+    {
+      ...options,
+      method: "GET",
+    },
+  );
+};
+
+/**
+ * Manage administrator metadata; deployment owns runtime bean configuration.
+ * @summary Create expert metadata
+ */
+export type postApiV1SemanticRoutersExpertsResponse200 = {
+  data: WanakuResponseSemanticExpert;
+  status: 200;
+};
+
+export type postApiV1SemanticRoutersExpertsResponse400 = {
+  data: void;
+  status: 400;
+};
+
+export type postApiV1SemanticRoutersExpertsResponse404 = {
+  data: void;
+  status: 404;
+};
+
+export type postApiV1SemanticRoutersExpertsResponse409 = {
+  data: void;
+  status: 409;
+};
+
+export type postApiV1SemanticRoutersExpertsResponse422 = {
+  data: void;
+  status: 422;
+};
+
+export type postApiV1SemanticRoutersExpertsResponseSuccess =
+  postApiV1SemanticRoutersExpertsResponse200 & {
+    headers: Headers;
+  };
+export type postApiV1SemanticRoutersExpertsResponseError = (
+  | postApiV1SemanticRoutersExpertsResponse400
+  | postApiV1SemanticRoutersExpertsResponse404
+  | postApiV1SemanticRoutersExpertsResponse409
+  | postApiV1SemanticRoutersExpertsResponse422
+) & {
+  headers: Headers;
+};
+
+export type postApiV1SemanticRoutersExpertsResponse =
+  | postApiV1SemanticRoutersExpertsResponseSuccess
+  | postApiV1SemanticRoutersExpertsResponseError;
+
+export const getPostApiV1SemanticRoutersExpertsUrl = () => {
+  return `/api/v1/semantic-routers/experts`;
+};
+
+export const postApiV1SemanticRoutersExperts = async (
+  semanticExpert: SemanticExpert,
+  options?: RequestInit,
+): Promise<postApiV1SemanticRoutersExpertsResponse> => {
+  return customFetch<postApiV1SemanticRoutersExpertsResponse>(
+    getPostApiV1SemanticRoutersExpertsUrl(),
+    {
+      ...options,
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...options?.headers },
+      body: JSON.stringify(semanticExpert),
+    },
+  );
+};
+
+/**
+ * Manage administrator metadata; deployment owns runtime bean configuration.
+ * @summary Update expert metadata
+ */
+export type putApiV1SemanticRoutersExpertsIdResponse200 = {
+  data: WanakuResponseSemanticExpert;
+  status: 200;
+};
+
+export type putApiV1SemanticRoutersExpertsIdResponse400 = {
+  data: void;
+  status: 400;
+};
+
+export type putApiV1SemanticRoutersExpertsIdResponse404 = {
+  data: void;
+  status: 404;
+};
+
+export type putApiV1SemanticRoutersExpertsIdResponse409 = {
+  data: void;
+  status: 409;
+};
+
+export type putApiV1SemanticRoutersExpertsIdResponse422 = {
+  data: void;
+  status: 422;
+};
+
+export type putApiV1SemanticRoutersExpertsIdResponseSuccess =
+  putApiV1SemanticRoutersExpertsIdResponse200 & {
+    headers: Headers;
+  };
+export type putApiV1SemanticRoutersExpertsIdResponseError = (
+  | putApiV1SemanticRoutersExpertsIdResponse400
+  | putApiV1SemanticRoutersExpertsIdResponse404
+  | putApiV1SemanticRoutersExpertsIdResponse409
+  | putApiV1SemanticRoutersExpertsIdResponse422
+) & {
+  headers: Headers;
+};
+
+export type putApiV1SemanticRoutersExpertsIdResponse =
+  | putApiV1SemanticRoutersExpertsIdResponseSuccess
+  | putApiV1SemanticRoutersExpertsIdResponseError;
+
+export const getPutApiV1SemanticRoutersExpertsIdUrl = (id: string) => {
+  return `/api/v1/semantic-routers/experts/${id}`;
+};
+
+export const putApiV1SemanticRoutersExpertsId = async (
+  id: string,
+  semanticExpert: SemanticExpert,
+  options?: RequestInit,
+): Promise<putApiV1SemanticRoutersExpertsIdResponse> => {
+  return customFetch<putApiV1SemanticRoutersExpertsIdResponse>(
+    getPutApiV1SemanticRoutersExpertsIdUrl(id),
+    {
+      ...options,
+      method: "PUT",
+      headers: { "Content-Type": "application/json", ...options?.headers },
+      body: JSON.stringify(semanticExpert),
+    },
+  );
+};
+
+/**
+ * Manage administrator metadata; deployment owns runtime bean configuration.
+ * @summary Delete unreferenced expert metadata
+ */
+export type deleteApiV1SemanticRoutersExpertsIdResponse200 = {
+  data: WanakuResponseVoid;
+  status: 200;
+};
+
+export type deleteApiV1SemanticRoutersExpertsIdResponse400 = {
+  data: void;
+  status: 400;
+};
+
+export type deleteApiV1SemanticRoutersExpertsIdResponse404 = {
+  data: void;
+  status: 404;
+};
+
+export type deleteApiV1SemanticRoutersExpertsIdResponse409 = {
+  data: void;
+  status: 409;
+};
+
+export type deleteApiV1SemanticRoutersExpertsIdResponse422 = {
+  data: void;
+  status: 422;
+};
+
+export type deleteApiV1SemanticRoutersExpertsIdResponseSuccess =
+  deleteApiV1SemanticRoutersExpertsIdResponse200 & {
+    headers: Headers;
+  };
+export type deleteApiV1SemanticRoutersExpertsIdResponseError = (
+  | deleteApiV1SemanticRoutersExpertsIdResponse400
+  | deleteApiV1SemanticRoutersExpertsIdResponse404
+  | deleteApiV1SemanticRoutersExpertsIdResponse409
+  | deleteApiV1SemanticRoutersExpertsIdResponse422
+) & {
+  headers: Headers;
+};
+
+export type deleteApiV1SemanticRoutersExpertsIdResponse =
+  | deleteApiV1SemanticRoutersExpertsIdResponseSuccess
+  | deleteApiV1SemanticRoutersExpertsIdResponseError;
+
+export const getDeleteApiV1SemanticRoutersExpertsIdUrl = (id: string) => {
+  return `/api/v1/semantic-routers/experts/${id}`;
+};
+
+export const deleteApiV1SemanticRoutersExpertsId = async (
+  id: string,
+  options?: RequestInit,
+): Promise<deleteApiV1SemanticRoutersExpertsIdResponse> => {
+  return customFetch<deleteApiV1SemanticRoutersExpertsIdResponse>(
+    getDeleteApiV1SemanticRoutersExpertsIdUrl(id),
+    {
+      ...options,
+      method: "DELETE",
+    },
+  );
+};
+
+/**
+ * Manage administrator metadata; deployment owns runtime bean configuration.
+ * @summary Read expert metadata
+ */
+export type getApiV1SemanticRoutersExpertsIdResponse200 = {
+  data: WanakuResponseSemanticExpert;
+  status: 200;
+};
+
+export type getApiV1SemanticRoutersExpertsIdResponse400 = {
+  data: void;
+  status: 400;
+};
+
+export type getApiV1SemanticRoutersExpertsIdResponse404 = {
+  data: void;
+  status: 404;
+};
+
+export type getApiV1SemanticRoutersExpertsIdResponse409 = {
+  data: void;
+  status: 409;
+};
+
+export type getApiV1SemanticRoutersExpertsIdResponse422 = {
+  data: void;
+  status: 422;
+};
+
+export type getApiV1SemanticRoutersExpertsIdResponseSuccess =
+  getApiV1SemanticRoutersExpertsIdResponse200 & {
+    headers: Headers;
+  };
+export type getApiV1SemanticRoutersExpertsIdResponseError = (
+  | getApiV1SemanticRoutersExpertsIdResponse400
+  | getApiV1SemanticRoutersExpertsIdResponse404
+  | getApiV1SemanticRoutersExpertsIdResponse409
+  | getApiV1SemanticRoutersExpertsIdResponse422
+) & {
+  headers: Headers;
+};
+
+export type getApiV1SemanticRoutersExpertsIdResponse =
+  | getApiV1SemanticRoutersExpertsIdResponseSuccess
+  | getApiV1SemanticRoutersExpertsIdResponseError;
+
+export const getGetApiV1SemanticRoutersExpertsIdUrl = (id: string) => {
+  return `/api/v1/semantic-routers/experts/${id}`;
+};
+
+export const getApiV1SemanticRoutersExpertsId = async (
+  id: string,
+  options?: RequestInit,
+): Promise<getApiV1SemanticRoutersExpertsIdResponse> => {
+  return customFetch<getApiV1SemanticRoutersExpertsIdResponse>(
+    getGetApiV1SemanticRoutersExpertsIdUrl(id),
     {
       ...options,
       method: "GET",

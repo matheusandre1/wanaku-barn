@@ -37,6 +37,12 @@ export function ReviewStep({
     ["MCP tool", definition.toolName],
     ["Compatibility profile", definition.profile],
     ["Expert", definition.expertId],
+    [
+      "Guard",
+      definition.guard
+        ? `${definition.guard.expertId} / ${definition.guard.operation}; rejects ${String(definition.guard.rejectWhen ?? true)}`
+        : "None",
+    ],
     ["Message to classify", "Request message (message field)"],
     [
       "Action labels",
@@ -101,16 +107,17 @@ export function ReviewStep({
             <code>{`--catalog-revision=${shellQuote(publication.revision ?? "")}`}</code>
             .
           </p>
-          {publication.expert?.dependency ===
-          `org.apache.camel:camel-typesafe-ai:${publication.camelVersion}` ? (
+          <p>
+            Configure the published expert bean{" "}
+            {publication.expert?.bean || "from the catalog"} with its
+            implementation dependency. Set provider credentials and model
+            settings in the runtime environment.
+          </p>
+          {publication.guard && (
             <p>
-              Set TYPESAFE_API_KEY in the runtime environment. Set
-              TYPESAFE_MODEL to override the default model.
-            </p>
-          ) : (
-            <p>
-              Configure the --expert option for this publication. Set provider
-              credentials in the runtime environment.
+              Configure guard bean {publication.guard.expert?.bean} and
+              operation {publication.guard.operation}. Provision its required
+              model files before startup.
             </p>
           )}
           {(publication.deploymentInstructions?.length ?? 0) > 0 && (

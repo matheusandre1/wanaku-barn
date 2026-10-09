@@ -37,6 +37,9 @@ public class SemanticRouterDefinition {
     @Schema(description = "Configured expert catalog identifier")
     public String expertId;
 
+    @Schema(description = "Optional Boolean guard evaluated before classification", nullable = true)
+    public SemanticGuard guard;
+
     @Schema(description = "Invocation field supplied to native semantic evaluation")
     public String semanticInput;
 

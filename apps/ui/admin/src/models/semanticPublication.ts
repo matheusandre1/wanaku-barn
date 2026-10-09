@@ -6,6 +6,7 @@
  */
 import type { SemanticPublicationToolName } from "./semanticPublicationToolName";
 import type { SemanticPublicationExpert } from "./semanticPublicationExpert";
+import type { SemanticPublicationGuard } from "./semanticPublicationGuard";
 import type { SemanticPublicationCamelBuild } from "./semanticPublicationCamelBuild";
 
 export interface SemanticPublication {
@@ -15,6 +16,8 @@ export interface SemanticPublication {
   toolName?: SemanticPublicationToolName;
   /** Expert identity and implementation captured at publication without credentials; absent in legacy records */
   expert?: SemanticPublicationExpert;
+  /** Immutable guard configuration and expert snapshot */
+  guard?: SemanticPublicationGuard;
   /** Immutable revision derived from the generated catalog inputs */
   revision?: string;
   /** Revision-specific existing Barn catalog name */

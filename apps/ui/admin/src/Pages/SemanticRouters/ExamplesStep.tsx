@@ -1,9 +1,6 @@
 import {
-  Accordion,
-  AccordionItem,
   Button,
-  CodeSnippet,
-  InlineLoading,
+  Checkbox,
   InlineNotification,
   Select,
   SelectItem,
@@ -20,6 +17,8 @@ export type PreviewState =
   | { status: "loading" }
   | { status: "success"; data: SemanticPreview }
   | { status: "error"; error: string };
+
+import { PreviewResult } from "./PreviewResult";
 
 interface ExamplesStepProps {
   definition: SemanticRouterDefinition;
@@ -51,7 +50,7 @@ export function ExamplesStep({
     <div className="semantic-router-fields">
       <InlineNotification
         kind="info"
-        title="Classification only"
+        title="Guard and classification only"
         hideCloseButton
         subtitle="Previews save this draft and use its expert and decision rules. They do not execute any action."
       />
@@ -81,7 +80,21 @@ export function ExamplesStep({
                 update(index, { message: event.target.value })
               }
             />
+            {definition.guard && (
+              <Checkbox
+                id={`expected-blocked-${index}`}
+                labelText={`Example ${index + 1} expected to be blocked`}
+                checked={example.expectedBlocked ?? false}
+                onChange={(_event, { checked }) =>
+                  update(index, {
+                    expectedBlocked: checked,
+                    expectedLabel: checked ? undefined : "",
+                  })
+                }
+              />
+            )}
             <Select
+              disabled={example.expectedBlocked === true}
               id={`expected-${index}`}
               labelText={`Example ${index + 1} expected label`}
               value={example.expectedLabel ?? ""}
@@ -104,7 +117,9 @@ export function ExamplesStep({
                 kind="tertiary"
                 size="sm"
                 disabled={
-                  busy || !example.message?.trim() || !example.expectedLabel
+                  busy ||
+                  !example.message?.trim() ||
+                  (!example.expectedBlocked && !example.expectedLabel)
                 }
                 onClick={() => onPreview(index)}
               >
@@ -121,61 +136,7 @@ export function ExamplesStep({
                 Remove example {index + 1}
               </Button>
             </div>
-            <div aria-live="polite">
-              {result?.status === "loading" && (
-                <InlineLoading description="Evaluating example" />
-              )}
-              {result?.status === "error" && (
-                <InlineNotification
-                  kind="error"
-                  title="Preview failed"
-                  subtitle={result.error}
-                  hideCloseButton
-                />
-              )}
-              {result?.status === "success" && (
-                <>
-                  {result.data.error ? (
-                    <InlineNotification
-                      kind="error"
-                      title="Evaluation error"
-                      subtitle={result.data.error}
-                      hideCloseButton
-                    />
-                  ) : (
-                    <InlineNotification
-                      kind={
-                        (result.data.noMatch
-                          ? "no_match"
-                          : result.data.label) === example.expectedLabel
-                          ? "success"
-                          : "warning"
-                      }
-                      title={
-                        result.data.noMatch
-                          ? "No action matched"
-                          : "Action selected"
-                      }
-                      hideCloseButton
-                      subtitle={`Expected: ${example.expectedLabel}. Actual: ${result.data.noMatch ? "no_match" : result.data.label}.`}
-                    />
-                  )}
-                  {result.data.durationMillis !== undefined && (
-                    <p>Evaluation time: {result.data.durationMillis} ms.</p>
-                  )}
-                  {result.data.diagnostics &&
-                    Object.keys(result.data.diagnostics).length > 0 && (
-                      <Accordion>
-                        <AccordionItem title="Available evaluation diagnostics">
-                          <CodeSnippet type="multi" feedback="Copied">
-                            {JSON.stringify(result.data.diagnostics, null, 2)}
-                          </CodeSnippet>
-                        </AccordionItem>
-                      </Accordion>
-                    )}
-                </>
-              )}
-            </div>
+            <PreviewResult result={result} example={example} />
           </Tile>
         );
       })}

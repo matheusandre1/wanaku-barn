@@ -18,6 +18,9 @@ public class SemanticPublication {
             nullable = true)
     public SemanticExpert expert;
 
+    @Schema(description = "Immutable guard configuration and expert snapshot", nullable = true)
+    public SemanticPublishedGuard guard;
+
     @Schema(description = "Immutable revision derived from the generated catalog inputs")
     public String revision;
 

@@ -169,7 +169,7 @@ class SemanticPreviewClientTest {
         }
     }
 
-    private static SemanticPreviewClient client(HttpServer server) {
+    static SemanticPreviewClient client(HttpServer server) {
         SemanticActionCatalog catalog = new SemanticActionCatalog();
         catalog.kamelets = ai.wanaku.backend.api.v1.kamelets.KameletTestSupport.catalog(
                 ai.wanaku.backend.api.v1.kamelets.KameletTestSupport.repository(new java.util.LinkedHashMap<>()));

@@ -18,6 +18,7 @@ import type {
 import { getErrorMessage } from "../../utils/error";
 import { semanticRouterApi } from "./api";
 import { SemanticRouterWizard } from "./SemanticRouterWizard";
+import { ManageExperts } from "./ManageExperts";
 import { isPluginMode } from "../../plugin-host";
 import "./SemanticRouters.scss";
 
@@ -73,6 +74,7 @@ export function SemanticRoutersPage() {
   const [removing, setRemoving] = useState<SemanticRouterDefinition | null>(
     null,
   );
+  const [managingExperts, setManagingExperts] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const { wizard, setWizard, loadingWizard, openWizard } =
@@ -122,7 +124,14 @@ export function SemanticRoutersPage() {
           filtering, classification, and routing in your pipeline, allowing you
           to build intelligent automation without writing complex code.
           {/* The plugin host has no navigation between plugin pages */}
-          {!isPluginMode() && <> <a href="#/change-history?type=semantic_router">View the change history</a></>}
+          {!isPluginMode() && (
+            <>
+              {" "}
+              <a href="#/change-history?type=semantic_router">
+                View the change history
+              </a>
+            </>
+          )}
         </p>
       </div>
       <div id="page-content">
@@ -155,6 +164,12 @@ export function SemanticRoutersPage() {
             <>
               <TableToolbar className="semantic-router-toolbar">
                 <TableToolbarContent>
+                  <Button
+                    kind="tertiary"
+                    onClick={() => setManagingExperts(true)}
+                  >
+                    Manage experts
+                  </Button>
                   <Button
                     disabled={loadingWizard}
                     onClick={() => void openWizard(null)}
@@ -236,6 +251,12 @@ export function SemanticRoutersPage() {
           )}
         </div>
       </div>
+      {managingExperts && (
+        <ManageExperts
+          onClose={() => setManagingExperts(false)}
+          onChanged={() => void load()}
+        />
+      )}
       <Modal
         open={Boolean(removing)}
         danger

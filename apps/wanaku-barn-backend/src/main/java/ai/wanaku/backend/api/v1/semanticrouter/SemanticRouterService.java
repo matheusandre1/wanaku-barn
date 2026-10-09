@@ -58,6 +58,58 @@ public interface SemanticRouterService {
     @APIResponse(responseCode = "404", description = "Definition not found")
     WanakuResponse<List<SemanticExpert>> experts();
 
+    /** Create expert metadata. */
+    @POST
+    @Path("/experts")
+    @Operation(
+            summary = "Create expert metadata",
+            description = "Manage administrator metadata; deployment owns runtime bean configuration.")
+    @APIResponse(responseCode = "200", description = "Operation completed")
+    @APIResponse(responseCode = "400", description = "Invalid request")
+    @APIResponse(responseCode = "404", description = "Expert not found")
+    @APIResponse(responseCode = "409", description = "Duplicate identity or referenced expert")
+    @APIResponse(responseCode = "422", description = "Invalid expert metadata")
+    WanakuResponse<SemanticExpert> createExpert(@Valid SemanticExpert expert);
+
+    /** Read expert metadata. */
+    @GET
+    @Path("/experts/{id}")
+    @Operation(
+            summary = "Read expert metadata",
+            description = "Manage administrator metadata; deployment owns runtime bean configuration.")
+    @APIResponse(responseCode = "200", description = "Operation completed")
+    @APIResponse(responseCode = "400", description = "Invalid request")
+    @APIResponse(responseCode = "404", description = "Expert not found")
+    @APIResponse(responseCode = "409", description = "Duplicate identity or referenced expert")
+    @APIResponse(responseCode = "422", description = "Invalid expert metadata")
+    WanakuResponse<SemanticExpert> getExpert(@PathParam("id") String id);
+
+    /** Update expert metadata. */
+    @PUT
+    @Path("/experts/{id}")
+    @Operation(
+            summary = "Update expert metadata",
+            description = "Manage administrator metadata; deployment owns runtime bean configuration.")
+    @APIResponse(responseCode = "200", description = "Operation completed")
+    @APIResponse(responseCode = "400", description = "Invalid request")
+    @APIResponse(responseCode = "404", description = "Expert not found")
+    @APIResponse(responseCode = "409", description = "Duplicate identity or referenced expert")
+    @APIResponse(responseCode = "422", description = "Invalid expert metadata")
+    WanakuResponse<SemanticExpert> updateExpert(@PathParam("id") String id, @Valid SemanticExpert expert);
+
+    /** Delete unreferenced expert metadata. */
+    @DELETE
+    @Path("/experts/{id}")
+    @Operation(
+            summary = "Delete unreferenced expert metadata",
+            description = "Manage administrator metadata; deployment owns runtime bean configuration.")
+    @APIResponse(responseCode = "200", description = "Operation completed")
+    @APIResponse(responseCode = "400", description = "Invalid request")
+    @APIResponse(responseCode = "404", description = "Expert not found")
+    @APIResponse(responseCode = "409", description = "Duplicate identity or referenced expert")
+    @APIResponse(responseCode = "422", description = "Invalid expert metadata")
+    WanakuResponse<Void> removeExpert(@PathParam("id") String id);
+
     /** List saved router drafts. */
     @GET
     @Operation(

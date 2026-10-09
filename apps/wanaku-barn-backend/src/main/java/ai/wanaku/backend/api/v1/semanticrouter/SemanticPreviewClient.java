@@ -17,6 +17,7 @@ import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.jboss.logging.Logger;
+import ai.wanaku.backend.api.v1.semanticrouter.model.SemanticGuardPreview;
 import ai.wanaku.backend.api.v1.semanticrouter.model.SemanticPreview;
 import ai.wanaku.backend.api.v1.semanticrouter.model.SemanticRouterDefinition;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -80,39 +81,18 @@ public class SemanticPreviewClient {
             return finish(result, start);
         }
         try {
+            long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(timeoutSeconds);
+            if (definition.guard != null) {
+                evaluateGuard(definition, message, result, deadline);
+                if (result.blocked) return finish(result, start);
+            }
             Map<String, String> criteria = SemanticCatalogGenerator.criteria(definition);
-            Map<String, Object> payload = Map.of(
-                    "expertBean",
+            JsonNode value = requestNative(
                     catalog.expert(definition.expertId).bean,
-                    "operation",
                     "choice",
-                    "parameters",
                     Map.of("instructions", definition.instructions, "criteria", criteria),
-                    "state",
-                    message);
-            HttpRequest.Builder request = HttpRequest.newBuilder(URI.create(url.get()))
-                    .timeout(Duration.ofSeconds(timeoutSeconds))
-                    .header("Content-Type", "application/json")
-                    .POST(HttpRequest.BodyPublishers.ofString(mapper.writeValueAsString(payload)));
-            token.ifPresent(value -> request.header("Authorization", "Bearer " + value));
-            // Bound the provider response before parsing it or returning diagnostics.
-            var pending = client.sendAsync(request.build(), ignored -> new BoundedSubscriber());
-            HttpResponse<byte[]> response;
-            try {
-                response = pending.get(timeoutSeconds, TimeUnit.SECONDS);
-            } catch (InterruptedException e) {
-                pending.cancel(true);
-                throw e;
-            } catch (java.util.concurrent.ExecutionException | java.util.concurrent.TimeoutException e) {
-                pending.cancel(true);
-                throw new IOException("Preview response failed or timed out", e);
-            }
-            byte[] body = response.body();
-            if (response.statusCode() != 200) {
-                result.error = "Semantic evaluation failed";
-                return finish(result, start);
-            }
-            JsonNode value = mapper.readTree(body);
+                    message,
+                    deadline);
             JsonNode choice = value.path("value");
             if (!"choice".equals(value.path("resultType").asText())
                     || !choice.isTextual()
@@ -126,7 +106,9 @@ public class SemanticPreviewClient {
             result.diagnostics = safeDiagnostics(value.path("diagnostics"), criteria.keySet());
         } catch (IOException e) {
             LOG.debug("Semantic preview transport failed", e);
-            result.error = "Semantic evaluation failed";
+            result.error = definition.guard != null && result.guard == null
+                    ? "Semantic guard evaluation failed"
+                    : "Semantic evaluation failed";
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             result.error = "Semantic evaluation interrupted";
@@ -136,8 +118,57 @@ public class SemanticPreviewClient {
         return finish(result, start);
     }
 
+    private void evaluateGuard(
+            SemanticRouterDefinition definition, String message, SemanticPreview result, long deadline)
+            throws IOException, InterruptedException {
+        var guard = definition.guard;
+        JsonNode value = requestNative(
+                catalog.expert(guard.expertId).bean,
+                guard.operation,
+                guard.parameters == null ? Map.of() : guard.parameters,
+                message,
+                deadline);
+        if (!"boolean".equals(value.path("resultType").asText())
+                || !value.path("value").isBoolean()) throw new IOException("Invalid native Boolean result");
+        result.guard = new SemanticGuardPreview();
+        result.guard.value = value.path("value").booleanValue();
+        result.guard.diagnostics = safeDiagnostics(value.path("diagnostics"), java.util.Set.of("true", "false"));
+        result.blocked = result.guard.value == guard.rejectWhen;
+    }
+
+    private JsonNode requestNative(
+            String bean, String operation, Map<String, Object> parameters, String message, long deadline)
+            throws IOException, InterruptedException {
+        long remaining = deadline - System.nanoTime();
+        if (remaining <= 0) throw new IOException("Preview deadline exceeded");
+        Map<String, Object> payload =
+                Map.of("expertBean", bean, "operation", operation, "parameters", parameters, "state", message);
+        HttpRequest.Builder request = HttpRequest.newBuilder(URI.create(url.orElseThrow()))
+                .timeout(Duration.ofNanos(remaining))
+                .header("Content-Type", "application/json")
+                .POST(HttpRequest.BodyPublishers.ofString(mapper.writeValueAsString(payload)));
+        token.ifPresent(value -> request.header("Authorization", "Bearer " + value));
+        var pending = client.sendAsync(request.build(), ignored -> new BoundedSubscriber());
+        try {
+            HttpResponse<byte[]> response =
+                    pending.get(Math.max(1, deadline - System.nanoTime()), TimeUnit.NANOSECONDS);
+            if (response.statusCode() != 200) throw new IOException("Preview evaluation failed");
+            JsonNode value = mapper.readTree(response.body());
+            if (value == null || !value.isObject()) throw new IOException("Invalid native evaluation response");
+            return value;
+        } catch (InterruptedException e) {
+            pending.cancel(true);
+            throw e;
+        } catch (java.util.concurrent.ExecutionException | java.util.concurrent.TimeoutException e) {
+            pending.cancel(true);
+            throw new IOException("Preview response failed or timed out", e);
+        }
+    }
+
     private static Map<String, Object> safeDiagnostics(JsonNode diagnostics, java.util.Set<String> labels) {
         Map<String, Object> safe = new java.util.LinkedHashMap<>();
+        JsonNode probability = diagnostics.path("probability");
+        if (probability(probability)) safe.put("probability", probability.doubleValue());
         JsonNode confidence = diagnostics.path("confidence");
         if (probability(confidence)) safe.put("confidence", confidence.doubleValue());
         JsonNode probabilities = diagnostics.path("probabilities");

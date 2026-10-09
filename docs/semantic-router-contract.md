@@ -58,25 +58,21 @@ Set `x-secret-reference: true` on a credential-reference property. Barn also rec
 
 ## Expert instances
 
-An expert GAV identifies its implementation dependency. A named Camel bean identifies its configured instance. These identifiers have different purposes.
+An expert GAV identifies its implementation dependency. A named Camel bean identifies its configured instance. Barn manages metadata for these reusable instances; WSR deployment configuration creates their beans and supplies credentials, model files, timeouts and other provider settings.
 
-The default authoring entry has ID `support`, bean `supportExpert`, and dependency `org.apache.camel:camel-typesafe-ai:4.23.0-SNAPSHOT`. WSR must configure that bean before startup. The deployment owns the provider endpoint, credentials, model, timeout, and concurrency settings. Barn does not store or return those values.
+Use `GET /api/v1/semantic-routers/experts` to list entries; `POST /experts` creates an entry and `GET`, `PUT` and `DELETE /experts/{id}` read, replace and remove it. IDs and Camel bean names are unique. IDs are immutable. Duplicate identities or deletion while a saved draft references an expert return HTTP 409. Invalid metadata returns HTTP 422; missing entries return HTTP 404. Generic DataStore mutations cannot alter expert entries or the initialization marker.
 
-Administrators can set `wanaku.semantic.experts-file` to a JSON array of expert entries:
+Each entry retains `id`, `name`, `bean`, `dependency` and the legacy `supportsConfidence` field. Its `operations` describe the native name, `inputTypes`, `resultType`, `resultMeaning` and a Draft-07 `parameterSchema`. Administrators supply these descriptions from the deployed expert's Camel contract. This is metadata, not runtime discovery or a claim that a bean is enabled. WSR validates the native contract before use. Parameter schemas are bounded object schemas without references or external dialect declarations.
 
-```json
-[
-  {
-    "id": "support",
-    "name": "Support expert",
-    "bean": "supportExpert",
-    "dependency": "org.apache.camel:camel-typesafe-ai:4.23.0-SNAPSHOT",
-    "supportsConfidence": false
-  }
-]
-```
+On first initialization, Barn imports `wanaku.semantic.experts-file`, or creates the default `support` / `supportExpert` entry for `org.apache.camel:camel-typesafe-ai:4.23.0-SNAPSHOT`. Legacy entries without operations acquire the existing text `choice` contract with instructions and named criteria. Initialization is recorded persistently; editing the file later does not overwrite administrator changes, and deleted seeds do not return after restart. Use the expert API for subsequent changes.
 
-Unknown expert fields are rejected. The initial choice contract does not expose confidence thresholds. Preview can return confidence or per-label probabilities only when the native expert supplies them.
+### Optional guard
+
+A definition can add `guard: {expertId, operation, parameters, rejectWhen}`. The operation must accept text and return a Boolean. `rejectWhen` defaults to true; select false for operations whose negative verdict rejects the request. Parameters are literal JSON validated against the declared schema. They cannot contain Camel expressions or references. Provider credentials and model configuration remain deployment settings.
+
+The guard reads the original request message before classification. A rejecting verdict raises the fixed tool error `Request rejected by semantic guard`. Neither the classifier nor any destination runs. Guard evaluation failures, unsupported operations, malformed results and uncertainty errors also stop processing. An accepted verdict permits the existing single choice evaluation and fixed-label dispatch. Barn never reapplies an expert's probability threshold.
+
+Wolf Defender's `injection` operation is a guard example: true means injection detected. Configure its model directory and explicitly provision the pinned files in WSR; Barn stores no model or bean-property configuration. A negative verdict means this detector did not detect injection, not that the request has authorization.
 
 ## Native Camel build
 
@@ -116,6 +112,7 @@ input.profile=message-to-string/v1
 tool.name=<tool-name>
 tool.tags=wsr-semantic-router
 expert.bean=supportExpert
+experts=service/experts.json
 evaluation=department
 kamelets=service/kamelets/wsr-billing-action.kamelet.yaml,service/kamelets/wsr-technical-action.kamelet.yaml
 dependencies=service/dependencies.txt
@@ -123,6 +120,8 @@ configuration=service/service.properties
 ```
 
 `contract.version` remains `1`. `camel.build` is an optional informational build hint for WSR; deployments own their dependency lock. It does not replace the revision and complete archive digest checks. New Barn publications include the schema build hint.
+
+`service/experts.json` captures the classifier snapshot and optional guard snapshot/configuration. Guarded manifests also record `guard.expert.bean`, `guard.operation`, and `guard.rejectWhen`. Both expert dependencies appear in the dependency file. Snapshot changes participate in revision generation; historical resolution uses the archive, not current expert metadata. Existing archives without this resource retain legacy resolution behavior.
 
 `kamelets` is a comma-separated list of exact relative file paths. It is not a directory. The catalog name and selected service have separate runtime settings: `wsr.catalog.name` and `wsr.catalog.service=service`.
 
@@ -141,7 +140,11 @@ All responses use `WanakuResponse<T>`. The base path is `/api/v1/semantic-router
 | Method and path | Operation |
 |---|---|
 | `GET /actions` | List eligible actions and native schemas |
-| `GET /experts` | List configured expert identifiers |
+| `GET /experts` | List managed expert metadata |
+| `POST /experts` | Create expert metadata |
+| `GET /experts/{id}` | Read expert metadata |
+| `PUT /experts/{id}` | Replace expert metadata |
+| `DELETE /experts/{id}` | Remove unreferenced expert metadata |
 | `GET /resolve?name=<name>` | Resolve the current published revision by exact saved name |
 | `GET /resolve?name=<name>&revision=<revision>` | Resolve one stored fixed revision |
 | `GET /` | List drafts |
@@ -161,7 +164,7 @@ Draft saves permit incomplete business fields. They still enforce storage bounds
 
 The resolver requires one exact saved definition name. It returns HTTP 409 when several definitions have that name. It returns HTTP 404 when the definition or a published revision is missing. An optional `revision` query parameter selects a stored revision. Without it, the resolver uses the current-publication record. A legacy definition with one publication can use that publication. A legacy definition with several publications and no current-publication record returns HTTP 409. Publish the saved draft again or specify a revision to select a publication.
 
-The response uses `WanakuResponse<SemanticResolvedPublication>`. It contains `name`, `toolName`, `catalogName`, `service`, `revision`, `sha256`, `mainFile`, `camelVersion`, `camelBuild`, `downloadUrl`, and `expert`. Barn verifies these values against the persisted archive. The expert contains its published identifier, name, bean, dependency, and confidence support. It contains no implementation class or credential. The resolver uses the published expert snapshot instead of the edited draft. Legacy expert recovery uses the verified archive and the configured expert catalog. If that recovery cannot identify one expert, `expert` is `null`. WSR then requires explicit expert configuration.
+The response uses `WanakuResponse<SemanticResolvedPublication>`. It contains `name`, `toolName`, `catalogName`, `service`, `revision`, `sha256`, `mainFile`, `camelVersion`, `camelBuild`, `downloadUrl`, and `expert`. Barn verifies these values against the persisted archive. The expert contains its published identifier, name, bean, dependency, and confidence support. It contains no implementation class or credential. The optional `guard` contains its published expert snapshot, operation, literal parameters and rejecting verdict. The resolver uses the published expert snapshot instead of the edited draft. Legacy expert recovery uses the verified archive and the configured expert catalog. If that recovery cannot identify one expert, `expert` is `null`. WSR then requires explicit expert configuration.
 
 Start the default expert runtime with `runtime --semantic-route support-route`. Supply `TYPESAFE_API_KEY` in the process environment. Kubernetes can supply the route and service addresses with `WSR_*` environment settings. See the [WSR deployment guide](https://github.com/wanaku-ai/wanaku-semantic-router/blob/ci-issue-182/docs/deployment.md). WSR resolves one publication at startup. It verifies the fixed archive pins before startup. It keeps that publication until restart.
 
@@ -169,7 +172,9 @@ Start the default expert runtime with `runtime --semantic-route support-route`. 
 
 Set `wanaku.semantic.preview-url` to the dedicated WSR preview endpoint. Set `wanaku.semantic.preview-token` if that deployment requires a bearer token. The URL and token are administrator configuration. They are not supplied by the caller or saved in a definition.
 
-Barn sends only `expertBean`, `operation: "choice"`, `parameters` containing `instructions` and `criteria`, and `state` containing the example message. It does not send action endpoints, Kamelet resources, action configuration, or executable YAML. WSR creates an isolated Camel context with only an evaluation declaration and classification route using the same choice operation and parameters as production. It does not insert routes into a production context.
+When enabled, Barn first sends the guard bean, operation, parameters and example state through the same preview API, requiring a native Boolean result. A rejecting guard returns `blocked: true`, `guard: {value, diagnostics}`, no label and no classification error. Guard failures return a sanitized error and skip classification. Accepted guards retain their verdict while classification continues. One Barn concurrency permit and deadline cover both evaluations. Saved examples can use `expectedBlocked: true` instead of an expected label.
+
+For classification, Barn sends only `expertBean`, `operation: "choice"`, `parameters` containing `instructions` and `criteria`, and `state` containing the example message. It does not send action endpoints, Kamelet resources, action configuration, or executable YAML. WSR creates an isolated Camel context with only an evaluation declaration and classification route using the same choice operation and parameters as production. It does not insert routes into a production context.
 
 WSR must return `resultType: "choice"` and a textual `value` equal to a configured action label or `no_match`. Barn rejects other result types, unknown labels, and malformed values.
 

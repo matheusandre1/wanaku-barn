@@ -223,6 +223,29 @@ class SemanticRouterBeanTest {
                         SemanticRouterBean.PUBLICATION.equals(row.getLabels().get("wanaku.type")))
                 .findFirst()
                 .orElseThrow();
+        var files = ai.wanaku.backend.api.v1.servicecatalog.CatalogZipReader.readEntries(java.util.Base64.getDecoder()
+                .decode(catalogs.get(publication.catalogName).getData()));
+        var legacyFiles = new java.util.TreeMap<>(files);
+        legacyFiles.remove(SemanticCatalogGenerator.EXPERTS);
+        legacyFiles.put(
+                "service/semantic-router.properties",
+                new String(
+                                legacyFiles.get("service/semantic-router.properties"),
+                                java.nio.charset.StandardCharsets.UTF_8)
+                        .replace("experts=service/experts.json\n", "")
+                        .getBytes(java.nio.charset.StandardCharsets.UTF_8));
+        var bytes = new java.io.ByteArrayOutputStream();
+        try (var zip = new java.util.zip.ZipOutputStream(bytes)) {
+            for (var entry : legacyFiles.entrySet()) {
+                zip.putNextEntry(new java.util.zip.ZipEntry(entry.getKey()));
+                zip.write(entry.getValue());
+                zip.closeEntry();
+            }
+        }
+        publication.sha256 = SemanticCatalogGenerator.digest(bytes.toByteArray());
+        catalogs.get(publication.catalogName)
+                .setData(java.util.Base64.getEncoder().encodeToString(bytes.toByteArray()));
+        metadata.setData(bean.mapper.writeValueAsString(publication));
         var legacy = bean.mapper.readTree(metadata.getData());
         ((com.fasterxml.jackson.databind.node.ObjectNode) legacy)
                 .remove(java.util.List.of("expert", "toolName", "camelBuild"));
@@ -237,6 +260,37 @@ class SemanticRouterBeanTest {
         assertThat(resolved.expert.bean).isEqualTo("supportExpert");
         bean.catalog.experts().getFirst().bean = "differentConfiguredBean";
         assertThat(bean.resolve(saved.name, null).expert).isNull();
+    }
+
+    @Test
+    void expertEditsCreateNewRevisionAndArchivedGuardSnapshotsRemainResolvable() throws Exception {
+        var security = SemanticGuardTest.securityExpert();
+        var catalog = org.mockito.Mockito.spy(bean.catalog);
+        org.mockito.Mockito.doReturn(security).when(catalog).expert("security");
+        bean.catalog = catalog;
+        bean.validator.catalog = catalog;
+        bean.generator.catalog = catalog;
+        bean.publicationResolver.catalog = catalog;
+        var saved = bean.save(null, SemanticGuardTest.guarded());
+        var first = bean.publish(saved.id);
+        security.name = "Updated security name";
+        security.bean = "updatedSecurityExpert";
+        var second = bean.publish(saved.id);
+        assertThat(second.revision).isNotEqualTo(first.revision);
+        var resolved = bean.resolve(saved.name, first.revision);
+        assertThat(resolved.guard.expert.name).isEqualTo("Security");
+        assertThat(resolved.guard.expert.bean).isEqualTo("securityExpert");
+        assertThat(resolved.guard.parameters).containsEntry("threshold", 0.7);
+        assertThat(bean.resolve(saved.name, null).guard.expert.bean).isEqualTo("updatedSecurityExpert");
+        var metadata = stored.values().stream()
+                .filter(row -> (first.catalogName + "-publication").equals(row.getName()))
+                .findFirst()
+                .orElseThrow();
+        first.guard.rejectWhen = false;
+        metadata.setData(bean.mapper.writeValueAsString(first));
+        assertThatThrownBy(() -> bean.resolve(saved.name, first.revision))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("snapshots");
     }
 
     @Test

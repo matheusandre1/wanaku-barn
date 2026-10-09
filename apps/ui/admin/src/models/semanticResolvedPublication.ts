@@ -6,6 +6,7 @@
  */
 import type { SemanticResolvedPublicationCamelBuild } from "./semanticResolvedPublicationCamelBuild";
 import type { SemanticResolvedPublicationExpert } from "./semanticResolvedPublicationExpert";
+import type { SemanticResolvedPublicationGuard } from "./semanticResolvedPublicationGuard";
 
 export interface SemanticResolvedPublication {
   /** Exact current saved router name used for lookup */
@@ -30,4 +31,6 @@ export interface SemanticResolvedPublication {
   downloadUrl?: string;
   /** Published expert snapshot; absent when a legacy archive cannot prove one unique curated expert */
   expert?: SemanticResolvedPublicationExpert;
+  /** Guard configuration captured in the selected publication */
+  guard?: SemanticResolvedPublicationGuard;
 }

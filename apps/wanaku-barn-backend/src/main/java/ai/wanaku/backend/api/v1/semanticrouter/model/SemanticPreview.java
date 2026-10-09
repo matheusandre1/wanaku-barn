@@ -6,6 +6,12 @@ import org.eclipse.microprofile.openapi.annotations.media.Schema;
 /** Classification-only result API contract. */
 @Schema(name = "SemanticPreview")
 public class SemanticPreview {
+    @Schema(description = "True when the guard rejected the request before classification")
+    public boolean blocked;
+
+    @Schema(description = "Guard verdict; absent when disabled or failed", nullable = true)
+    public SemanticGuardPreview guard;
+
     @Schema(description = "Selected fixed action label, or no_match; null on evaluation failure", nullable = true)
     public String label;
 

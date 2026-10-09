@@ -1,5 +1,8 @@
 import {
   deleteApiV1SemanticRoutersId,
+  deleteApiV1SemanticRoutersExpertsId,
+  postApiV1SemanticRoutersExperts,
+  putApiV1SemanticRoutersExpertsId,
   getApiV1SemanticRouters,
   getApiV1SemanticRoutersActions,
   getApiV1SemanticRoutersExperts,
@@ -42,6 +45,15 @@ export const semanticRouterApi = {
     ),
   experts: async () =>
     payload<SemanticExpert[]>(await getApiV1SemanticRoutersExperts()),
+  saveExpert: async (expert: SemanticExpert, existing: boolean) =>
+    payload<SemanticExpert>(
+      existing
+        ? await putApiV1SemanticRoutersExpertsId(expert.id ?? "", expert)
+        : await postApiV1SemanticRoutersExperts(expert),
+    ),
+  removeExpert: async (id: string) => {
+    await deleteApiV1SemanticRoutersExpertsId(id);
+  },
   save: async (definition: SemanticRouterDefinition) =>
     payload<SemanticRouterDefinition>(
       definition.id

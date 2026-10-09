@@ -4,16 +4,35 @@
  * wanaku-barn-backend API
  * OpenAPI spec version: 0.3.0-SNAPSHOT
  */
+import type { SemanticExpertOperation } from "./semanticExpertOperation";
 
 export interface SemanticExpert {
-  /** Configured expert catalog identifier */
-  id?: string;
-  /** Configured expert display name */
-  name?: string;
-  /** Named Camel expert instance configured externally by the deployment */
-  bean?: string;
-  /** Maven group:artifact:version implementation dependency */
-  dependency?: string;
+  /**
+   * Configured expert catalog identifier
+   * @pattern [a-z][a-z0-9_-]{0,63}
+   */
+  id: string;
+  /**
+   * Configured expert display name
+   * @maxLength 120
+   * @pattern \S
+   */
+  name: string;
+  /**
+   * Named Camel expert instance configured externally by the deployment
+   * @pattern [A-Za-z][A-Za-z0-9_]{0,63}
+   */
+  bean: string;
+  /**
+   * Maven group:artifact:version implementation dependency
+   * @pattern [A-Za-z0-9_.-]+:[A-Za-z0-9_.-]+:[A-Za-z0-9_.-]+
+   */
+  dependency: string;
   /** Whether this contract exposes confidence controls */
   supportsConfidence?: boolean;
+  /**
+   * Administrator declared native operations; omitted legacy entries expose choice
+   * @maxItems 32
+   */
+  operations?: SemanticExpertOperation[];
 }

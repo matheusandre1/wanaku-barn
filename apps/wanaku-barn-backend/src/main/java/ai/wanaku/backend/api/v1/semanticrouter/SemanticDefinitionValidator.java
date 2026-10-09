@@ -12,6 +12,7 @@ import java.util.Set;
 import ai.wanaku.backend.api.v1.semanticrouter.model.SemanticAction;
 import ai.wanaku.backend.api.v1.semanticrouter.model.SemanticActionSelection;
 import ai.wanaku.backend.api.v1.semanticrouter.model.SemanticExample;
+import ai.wanaku.backend.api.v1.semanticrouter.model.SemanticExpertOperation;
 import ai.wanaku.backend.api.v1.semanticrouter.model.SemanticFieldError;
 import ai.wanaku.backend.api.v1.semanticrouter.model.SemanticRouterDefinition;
 import ai.wanaku.backend.api.v1.semanticrouter.model.SemanticValidation;
@@ -35,6 +36,7 @@ public class SemanticDefinitionValidator {
         }
         validateIdentity(definition, errors, draft);
         validateActions(definition, errors, draft);
+        validateExperts(definition, errors, draft);
         validateExamples(definition, errors, draft);
         return result(errors);
     }
@@ -51,6 +53,82 @@ public class SemanticDefinitionValidator {
             error(errors, "semanticInput", "The supported semantic input is message");
         if (!draft && catalog.expert(definition.expertId) == null)
             error(errors, "expertId", "Select a configured expert");
+    }
+
+    private void validateExperts(SemanticRouterDefinition definition, List<SemanticFieldError> errors, boolean draft) {
+        if (!draft && catalog.expert(definition.expertId) != null) {
+            SemanticExpertOperation choice = operation(definition.expertId, "choice", "choice");
+            if (choice == null) error(errors, "expertId", "Select a text-compatible choice expert");
+            else if (definition.instructions != null
+                    && definition.actions != null
+                    && definition.noMatchCriteria != null
+                    && definition.actions.stream()
+                            .allMatch(action -> action != null && action.label != null && action.criteria != null)) {
+                Map<String, Object> parameters = Map.of(
+                        "instructions",
+                        definition.instructions,
+                        "criteria",
+                        SemanticCatalogGenerator.criteria(definition));
+                for (String issue : SemanticExpertCatalog.validateParameters(choice, parameters))
+                    error(errors, "expertId", issue);
+            }
+        }
+        if (definition.guard == null) return;
+        var guard = definition.guard;
+        text(errors, "guard.expertId", guard.expertId, 64, !draft);
+        text(errors, "guard.operation", guard.operation, 64, !draft);
+        if (guard.expertId != null && !guard.expertId.isEmpty() && !guard.expertId.matches("[a-z][a-z0-9_-]{0,63}"))
+            error(errors, "guard.expertId", "Use an expert catalog identifier");
+        if (guard.operation != null
+                && !guard.operation.isEmpty()
+                && !guard.operation.matches("[A-Za-z][A-Za-z0-9_-]{0,63}"))
+            error(errors, "guard.operation", "Use a native operation name");
+        Map<String, Object> parameters = guard.parameters == null ? Map.of() : guard.parameters;
+        try {
+            if (new ObjectMapper().writeValueAsBytes(parameters).length > 16384 || !literalParameters(parameters))
+                error(
+                        errors,
+                        "guard.parameters",
+                        "Use bounded literal parameters without Camel expressions or references");
+        } catch (java.io.IOException e) {
+            error(errors, "guard.parameters", "Invalid guard parameters");
+        }
+        if (draft) return;
+        SemanticExpertOperation operation = operation(guard.expertId, guard.operation, "boolean");
+        if (operation == null) error(errors, "guard.operation", "Select a text-compatible Boolean operation");
+        else
+            for (String issue : SemanticExpertCatalog.validateParameters(operation, parameters))
+                error(errors, "guard.parameters", issue);
+    }
+
+    private SemanticExpertOperation operation(String expertId, String name, String resultType) {
+        var expert = catalog.expert(expertId);
+        if (expert == null || expert.operations == null) return null;
+        return expert.operations.stream()
+                .filter(operation -> operation != null
+                        && java.util.Objects.equals(name, operation.name)
+                        && resultType.equals(operation.resultType)
+                        && operation.inputTypes != null
+                        && operation.inputTypes.contains("text"))
+                .findFirst()
+                .orElse(null);
+    }
+
+    private static boolean literalParameters(Object value) {
+        if (value instanceof String text)
+            return !text.contains("{{")
+                    && !text.contains("${")
+                    && !text.startsWith("#bean:")
+                    && !text.startsWith("#class:");
+        if (value instanceof Map<?, ?> map)
+            return map.entrySet().stream()
+                    .allMatch(entry -> entry.getKey() instanceof String
+                            && literalParameters(entry.getKey())
+                            && literalParameters(entry.getValue()));
+        if (value instanceof List<?> list)
+            return list.stream().allMatch(SemanticDefinitionValidator::literalParameters);
+        if (value instanceof Number number) return Double.isFinite(number.doubleValue());
+        return value == null || value instanceof Boolean;
     }
 
     private void validateActions(SemanticRouterDefinition definition, List<SemanticFieldError> errors, boolean draft) {
@@ -82,25 +160,38 @@ public class SemanticDefinitionValidator {
     }
 
     private void validateExamples(SemanticRouterDefinition definition, List<SemanticFieldError> errors, boolean draft) {
-        if (definition.examples != null) {
-            if (definition.examples.size() > 30) error(errors, "examples", "Store at most thirty examples");
-            else
-                for (int i = 0; i < definition.examples.size(); i++) {
-                    SemanticExample example = definition.examples.get(i);
-                    if (example == null) {
-                        error(errors, "examples[" + i + "]", "Example is required");
-                        continue;
-                    }
-                    text(errors, "examples[" + i + "].message", example.message, 8192, !draft);
-                    if (!draft
-                            && !"no_match".equals(example.expectedLabel)
-                            && (definition.actions == null
-                                    || definition.actions.stream()
-                                            .noneMatch(a -> a != null
-                                                    && java.util.Objects.equals(a.label, example.expectedLabel))))
-                        error(errors, "examples[" + i + "].expectedLabel", "Select an action label or no_match");
-                }
+        if (definition.examples == null) return;
+        if (definition.examples.size() > 30) {
+            error(errors, "examples", "Store at most thirty examples");
+            return;
         }
+        for (int i = 0; i < definition.examples.size(); i++)
+            validateExample(definition, definition.examples.get(i), "examples[" + i + "]", errors, draft);
+    }
+
+    private void validateExample(
+            SemanticRouterDefinition definition,
+            SemanticExample example,
+            String path,
+            List<SemanticFieldError> errors,
+            boolean draft) {
+        if (example == null) {
+            error(errors, path, "Example is required");
+            return;
+        }
+        text(errors, path + ".message", example.message, 8192, !draft);
+        if (draft) return;
+        if (Boolean.TRUE.equals(example.expectedBlocked)) {
+            if (definition.guard == null)
+                error(errors, path + ".expectedBlocked", "Enable a guard to expect rejection");
+            return;
+        }
+        if (!"no_match".equals(example.expectedLabel)
+                && (definition.actions == null
+                        || definition.actions.stream()
+                                .noneMatch(action -> action != null
+                                        && java.util.Objects.equals(action.label, example.expectedLabel))))
+            error(errors, path + ".expectedLabel", "Select an action label or no_match");
     }
 
     private void validateAction(

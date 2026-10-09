@@ -40,4 +40,7 @@ public class SemanticResolvedPublication {
                     "Published expert snapshot; absent when a legacy archive cannot prove one unique curated expert",
             nullable = true)
     public SemanticExpert expert;
+
+    @Schema(description = "Guard configuration captured in the selected publication", nullable = true)
+    public SemanticPublishedGuard guard;
 }

@@ -4,10 +4,13 @@
  * wanaku-barn-backend API
  * OpenAPI spec version: 0.3.0-SNAPSHOT
  */
+import type { SemanticExampleExpectedBlocked } from "./semanticExampleExpectedBlocked";
 
 export interface SemanticExample {
   /** Classification example input */
   message?: string;
   /** Expected action label or no_match */
   expectedLabel?: string;
+  /** Expect guard rejection instead of classification; absent means false */
+  expectedBlocked?: SemanticExampleExpectedBlocked;
 }

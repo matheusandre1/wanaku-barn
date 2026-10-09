@@ -18,6 +18,7 @@ import ai.wanaku.backend.api.v1.semanticrouter.model.SemanticExpert;
 import ai.wanaku.backend.api.v1.semanticrouter.model.SemanticPreview;
 import ai.wanaku.backend.api.v1.semanticrouter.model.SemanticPreviewRequest;
 import ai.wanaku.backend.api.v1.semanticrouter.model.SemanticPublication;
+import ai.wanaku.backend.api.v1.semanticrouter.model.SemanticPublishedGuard;
 import ai.wanaku.backend.api.v1.semanticrouter.model.SemanticResolvedPublication;
 import ai.wanaku.backend.api.v1.semanticrouter.model.SemanticRouterDefinition;
 import ai.wanaku.backend.api.v1.semanticrouter.model.SemanticValidation;
@@ -94,22 +95,24 @@ public class SemanticRouterBean {
     }
     /** Saves an incomplete draft after storage and credential-reference checks. */
     public SemanticRouterDefinition save(String id, SemanticRouterDefinition definition) {
-        catalog.bind(definition);
-        SemanticValidation validation = validator.validate(definition, true);
-        if (!validation.valid)
-            throw new InvalidPayloadException(
-                    validation.errors.getFirst().field + ": " + validation.errors.getFirst().message);
-        DataStore data = id == null ? new DataStore() : stored(id);
-        if (id == null) id = UUID.randomUUID().toString();
-        definition.id = id;
-        data.setId(id);
-        data.setName("semantic-router-" + id);
-        data.setLabels(Map.of("wanaku.type", TYPE));
-        data.setData(encode(definition));
-        if (data.getData().length() > 128 * 1024) throw new InvalidPayloadException("Definition exceeds 128 KiB");
-        catalog.retain(definition);
-        repository.persist(data);
-        return definition;
+        synchronized (catalog.expertMutationLock()) {
+            catalog.bind(definition);
+            SemanticValidation validation = validator.validate(definition, true);
+            if (!validation.valid)
+                throw new InvalidPayloadException(
+                        validation.errors.getFirst().field + ": " + validation.errors.getFirst().message);
+            DataStore data = id == null ? new DataStore() : stored(id);
+            if (id == null) id = UUID.randomUUID().toString();
+            definition.id = id;
+            data.setId(id);
+            data.setName("semantic-router-" + id);
+            data.setLabels(Map.of("wanaku.type", TYPE));
+            data.setData(encode(definition));
+            if (data.getData().length() > 128 * 1024) throw new InvalidPayloadException("Definition exceeds 128 KiB");
+            catalog.retain(definition);
+            repository.persist(data);
+            return definition;
+        }
     }
     /** Removes a draft while preserving immutable published revisions. */
     public void remove(String id) {
@@ -129,8 +132,10 @@ public class SemanticRouterBean {
      * @throws InvalidPayloadException if the configuration is invalid
      */
     public Map<String, String> files(SemanticRouterDefinition definition) {
-        requireValid(definition);
-        return CatalogZipReader.readEntriesAsText(generator.generate(definition, "preview", "semantic-preview"));
+        synchronized (catalog.expertMutationLock()) {
+            requireValid(definition);
+            return CatalogZipReader.readEntriesAsText(generator.generate(definition, "preview", "semantic-preview"));
+        }
     }
     /** Evaluates an example through the dedicated classification service. */
     public SemanticPreview preview(String id, SemanticPreviewRequest request) {
@@ -142,75 +147,88 @@ public class SemanticRouterBean {
     }
     /** Publishes or reuses a byte-identical immutable revision without activating a runtime. */
     public synchronized SemanticPublication publish(String id) {
-        SemanticRouterDefinition definition = get(id);
-        requireValid(definition);
-        catalog.retain(definition);
-        String revision = "r"
-                + SemanticCatalogGenerator.digest(generator.generate(definition, "candidate", "candidate"))
-                        .substring(0, 24);
-        String name = "semantic-" + id + "-" + revision;
-        byte[] archive = generator.generate(definition, revision, name);
-        String digest = SemanticCatalogGenerator.digest(archive);
-        for (SemanticPublication existing : revisions(id))
-            if (existing.revision.equals(revision)) {
-                if (!existing.sha256.equals(digest))
-                    throw new IllegalStateException("Published revision digest conflict");
-                publicationResolver.remember(existing);
-                return existing;
+        synchronized (catalog.expertMutationLock()) {
+            SemanticRouterDefinition definition = get(id);
+            requireValid(definition);
+            catalog.retain(definition);
+            String revision = "r"
+                    + SemanticCatalogGenerator.digest(generator.generate(definition, "candidate", "candidate"))
+                            .substring(0, 24);
+            String name = "semantic-" + id + "-" + revision;
+            byte[] archive = generator.generate(definition, revision, name);
+            String digest = SemanticCatalogGenerator.digest(archive);
+            for (SemanticPublication existing : revisions(id))
+                if (existing.revision.equals(revision)) {
+                    if (!existing.sha256.equals(digest))
+                        throw new IllegalStateException("Published revision digest conflict");
+                    publicationResolver.remember(existing);
+                    return existing;
+                }
+            DataStore data = new DataStore();
+            data.setName(name);
+            data.setData(Base64.getEncoder().encodeToString(archive));
+            data.setLabels(Map.of(
+                    "wanaku.type",
+                    "catalog",
+                    "semantic.immutable",
+                    "true",
+                    "semantic.definition",
+                    id,
+                    "semantic.revision",
+                    revision,
+                    "semantic.sha256",
+                    digest));
+            var checked = catalogValidator.validateCatalog(data);
+            if (!checked.valid())
+                throw new InvalidPayloadException("Generated catalog failed validation: " + checked.errors());
+            DataStore alreadyPublished = serviceCatalog.get(name);
+            if (alreadyPublished != null
+                    && !SemanticCatalogGenerator.digest(Base64.getDecoder().decode(alreadyPublished.getData()))
+                            .equals(digest))
+                throw new IllegalStateException("Immutable catalog already exists with another digest");
+            if (alreadyPublished == null) serviceCatalog.deploy(data);
+            SemanticPublication publication = new SemanticPublication();
+            publication.definitionId = id;
+            publication.toolName = definition.toolName;
+            var snapshots = CatalogZipReader.readEntries(archive).get(SemanticCatalogGenerator.EXPERTS);
+            try {
+                var experts = mapper.readTree(snapshots);
+                publication.expert = mapper.treeToValue(experts.get("expert"), SemanticExpert.class);
+                publication.guard = mapper.treeToValue(experts.get("guard"), SemanticPublishedGuard.class);
+            } catch (IOException e) {
+                throw new IllegalStateException("Cannot read generated expert snapshots", e);
             }
-        DataStore data = new DataStore();
-        data.setName(name);
-        data.setData(Base64.getEncoder().encodeToString(archive));
-        data.setLabels(Map.of(
-                "wanaku.type",
-                "catalog",
-                "semantic.immutable",
-                "true",
-                "semantic.definition",
-                id,
-                "semantic.revision",
-                revision,
-                "semantic.sha256",
-                digest));
-        var checked = catalogValidator.validateCatalog(data);
-        if (!checked.valid())
-            throw new InvalidPayloadException("Generated catalog failed validation: " + checked.errors());
-        DataStore alreadyPublished = serviceCatalog.get(name);
-        if (alreadyPublished != null
-                && !SemanticCatalogGenerator.digest(Base64.getDecoder().decode(alreadyPublished.getData()))
-                        .equals(digest))
-            throw new IllegalStateException("Immutable catalog already exists with another digest");
-        if (alreadyPublished == null) serviceCatalog.deploy(data);
-        SemanticPublication publication = new SemanticPublication();
-        publication.definitionId = id;
-        publication.toolName = definition.toolName;
-        publication.expert = mapper.convertValue(catalog.expert(definition.expertId), SemanticExpert.class);
-        publication.revision = revision;
-        publication.catalogName = name;
-        publication.sha256 = digest;
-        publication.mainFile = SemanticCatalogGenerator.MAIN;
-        publication.camelVersion = SemanticCatalogGenerator.CAMEL_VERSION;
-        publication.camelBuild = SemanticCatalogGenerator.CAMEL_BUILD;
-        publication.status = "published";
-        publication.downloadUrl = "/api/v1/service-catalog/download?name=" + name;
-        publication.deploymentInstructions = List.of(
-                "Configure the WSR catalog URL with the Barn origin and " + publication.downloadUrl,
-                "Set wsr.catalog.name=" + name,
-                "Set wsr.catalog.service=service",
-                "Set wsr.catalog.revision=" + revision,
-                "Set wsr.catalog.sha256=" + digest,
-                "Select main YAML " + publication.mainFile,
-                "Configure expert bean " + catalog.expert(definition.expertId).bean
-                        + " and external credential references",
-                "Restart or replace WSR with this revision; publication does not start WSR");
-        DataStore metadata = new DataStore();
-        metadata.setName(name + "-publication");
-        metadata.setLabels(Map.of("wanaku.type", PUBLICATION, "semantic.definition", id));
-        metadata.setData(encode(publication));
-        repository.persist(metadata);
-        publicationResolver.remember(publication);
-        LOG.infof("Published semantic catalog %s at revision %s", name, revision);
-        return publication;
+            publication.revision = revision;
+            publication.catalogName = name;
+            publication.sha256 = digest;
+            publication.mainFile = SemanticCatalogGenerator.MAIN;
+            publication.camelVersion = SemanticCatalogGenerator.CAMEL_VERSION;
+            publication.camelBuild = SemanticCatalogGenerator.CAMEL_BUILD;
+            publication.status = "published";
+            publication.downloadUrl = "/api/v1/service-catalog/download?name=" + name;
+            publication.deploymentInstructions = List.of(
+                    "Configure the WSR catalog URL with the Barn origin and " + publication.downloadUrl,
+                    "Set wsr.catalog.name=" + name,
+                    "Set wsr.catalog.service=service",
+                    "Set wsr.catalog.revision=" + revision,
+                    "Set wsr.catalog.sha256=" + digest,
+                    "Select main YAML " + publication.mainFile,
+                    "Configure expert bean " + publication.expert.bean + " and external credential references",
+                    "Restart or replace WSR with this revision; publication does not start WSR");
+            if (publication.guard != null) {
+                publication.deploymentInstructions = new ArrayList<>(publication.deploymentInstructions);
+                publication.deploymentInstructions.add("Enable guard expert bean " + publication.guard.expert.bean
+                        + " for operation " + publication.guard.operation + " using external deployment configuration");
+            }
+            DataStore metadata = new DataStore();
+            metadata.setName(name + "-publication");
+            metadata.setLabels(Map.of("wanaku.type", PUBLICATION, "semantic.definition", id));
+            metadata.setData(encode(publication));
+            repository.persist(metadata);
+            publicationResolver.remember(publication);
+            LOG.infof("Published semantic catalog %s at revision %s", name, revision);
+            return publication;
+        }
     }
     /** Lists published revisions independently of runtime readiness. */
     public List<SemanticPublication> revisions(String id) {

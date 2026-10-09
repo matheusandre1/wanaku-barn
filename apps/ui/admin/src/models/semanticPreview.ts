@@ -4,11 +4,16 @@
  * wanaku-barn-backend API
  * OpenAPI spec version: 0.3.0-SNAPSHOT
  */
+import type { SemanticPreviewGuard } from "./semanticPreviewGuard";
 import type { SemanticPreviewLabel } from "./semanticPreviewLabel";
 import type { SemanticPreviewError } from "./semanticPreviewError";
 import type { SemanticPreviewDiagnostics } from "./semanticPreviewDiagnostics";
 
 export interface SemanticPreview {
+  /** True when the guard rejected the request before classification */
+  blocked?: boolean;
+  /** Guard verdict; absent when disabled or failed */
+  guard?: SemanticPreviewGuard;
   /** Selected fixed action label, or no_match; null on evaluation failure */
   label?: SemanticPreviewLabel;
   /** True only for the explicit no_match label */

@@ -12,6 +12,9 @@ import type {
   SemanticRouterDefinition,
 } from "../../models";
 
+import { classifierExpert } from "./expertCatalog";
+import { GuardFields } from "./GuardFields";
+
 interface DecisionStepProps {
   definition: SemanticRouterDefinition;
   experts: SemanticExpert[];
@@ -56,7 +59,7 @@ export function DecisionStep({
         }
       >
         <SelectItem value="" text="Select an expert" />
-        {experts.map((expert) => (
+        {experts.filter(classifierExpert).map((expert) => (
           <SelectItem
             key={expert.id}
             value={expert.id}
@@ -70,6 +73,12 @@ export function DecisionStep({
           {selected.dependency}.
         </p>
       )}
+      <GuardFields
+        definition={definition}
+        experts={experts}
+        errors={errors}
+        onChange={onChange}
+      />
       <div>
         <Select
           id="semantic-input"

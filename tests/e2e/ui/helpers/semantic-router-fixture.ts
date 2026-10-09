@@ -1,5 +1,54 @@
-import type { Page } from '@playwright/test';
-import type { SemanticAction, SemanticExpert, SemanticFieldError, SemanticPublication, SemanticRouterDefinition } from '../../../../apps/ui/admin/src/models';
+import type { Page, Route } from '@playwright/test';
+import type { SemanticAction, SemanticExpert, SemanticGuard, SemanticPreview, SemanticPublishedGuard, SemanticFieldError, SemanticPublication, SemanticRouterDefinition } from '../../../../apps/ui/admin/src/models';
+
+
+function guardParameterErrors(guard: SemanticGuard | null | undefined, experts: Map<string, SemanticExpert>): SemanticFieldError[] {
+  if (!guard) return [];
+  const operation = experts.get(guard.expertId ?? '')?.operations?.find(item => item.name === guard.operation);
+  const properties = operation?.parameterSchema?.properties as Record<string, { type?: string }> | undefined;
+  return Object.entries(properties ?? {}).flatMap(([name, property]) => {
+    const value = guard.parameters?.[name];
+    if (value === undefined) return [];
+    const invalidObject = property.type === 'object' && (value === null || typeof value !== 'object' || Array.isArray(value));
+    const invalidArray = property.type === 'array' && !Array.isArray(value);
+    return invalidObject || invalidArray ? [{ field: 'guard.parameters', message: 'Guard parameters do not match the operation schema' }] : [];
+  });
+}
+
+function publishedGuard(guard: SemanticGuard | null | undefined, experts: Map<string, SemanticExpert>): SemanticPublishedGuard | undefined {
+  if (!guard) return undefined;
+  return { ...guard, expert: experts.get(guard.expertId ?? '') };
+}
+
+async function expertRequest(route: Route, experts: Map<string, SemanticExpert>, definitions: Map<string, SemanticRouterDefinition>, requests: string[]) {
+  const request = route.request();
+  const json = (data: unknown) => route.fulfill({ json: { data } });
+  const conflict = (message: string) => route.fulfill({ status: 409, json: { error: { message } } });
+  const path = new URL(request.url()).pathname.replace('/api/v1/semantic-routers', '');
+  const parts = path.split('/').filter(Boolean);
+  requests.push(`${request.method()} ${path}`);
+  if (request.method() === 'GET') return json(parts.length === 1 ? [...experts.values()] : experts.get(parts[1]));
+  if (request.method() === 'DELETE') {
+    const referenced = [...definitions.values()].some(definition => definition.expertId === parts[1] || definition.guard?.expertId === parts[1]);
+    if (referenced) return conflict('Expert is referenced by a draft');
+    experts.delete(parts[1]); return json(null);
+  }
+  const entry = request.postDataJSON() as SemanticExpert;
+  const duplicate = experts.has(entry.id!) || [...experts.values()].some(item => item.bean === entry.bean);
+  if (request.method() === 'POST' && duplicate) return conflict('Expert ID or bean already exists');
+  experts.set(entry.id!, entry); return json(entry);
+}
+
+function previewResult(message: string, guard: SemanticGuard | null | undefined): SemanticPreview {
+  const guardValue = message.includes('injection');
+  const blocked = Boolean(guard && guardValue === (guard.rejectWhen ?? true));
+  const guardError = guard && message.includes('guard_error') ? 'Guard evaluation failed' : null;
+  const error = guardError ?? (message.includes('provider_error') ? 'Expert provider is unavailable' : message.includes('malformed') ? 'Malformed expert decision' : null);
+  const label = message.toLowerCase().includes('invoice') ? 'wsr_billing_action' : message.toLowerCase().includes('software') ? 'wsr_technical_action' : null;
+  return { label: blocked || error ? null : label, blocked: !error && blocked,
+    guard: guard && !guardError ? { value: guardValue, diagnostics: {} } : null,
+    noMatch: !blocked && !error && !label, error, durationMillis: 5, diagnostics: {} };
+}
 
 /** Deterministic HTTP fixture for browser behavior. Native execution is covered by backend/runtime tests. */
 export async function semanticRouterFixture(page: Page, catalog?: (defaults: SemanticAction[], definitionId?: string) => SemanticAction[]) {
@@ -18,6 +67,8 @@ export async function semanticRouterFixture(page: Page, catalog?: (defaults: Sem
     id: 'support', name: 'Support expert', bean: 'supportExpert',
     dependency: 'org.apache.camel:camel-typesafe-ai:4.23.0-SNAPSHOT', supportsConfidence: false,
   };
+  const experts = new Map<string, SemanticExpert>([[expert.id!, expert]]);
+  const expertRequests: string[] = [];
   const actions: SemanticAction[] = ['billing', 'technical'].map(kind => ({
     id: `wsr-${kind}-action`, sha256: (kind === 'billing' ? 'b' : 'c').repeat(64), current: true, name: `${kind === 'billing' ? 'Billing' : 'Technical'} support`,
     description: `Handle ${kind} requests`, criteria: `${kind} questions`, profile: 'message-to-string/v1',
@@ -43,6 +94,7 @@ export async function semanticRouterFixture(page: Page, catalog?: (defaults: Sem
       }
       if ((definition.actions?.length ?? 0) < 2) errors.push({ field: 'actions', message: 'Select at least two actions' });
     }
+    errors.push(...guardParameterErrors(definition.guard, experts));
     const available = catalog ? catalog(actions, definition.id) : actions;
     definition.actions?.forEach((action, index) => {
       const schema = available.find(candidate => candidate.id === action.actionId &&
@@ -61,16 +113,19 @@ export async function semanticRouterFixture(page: Page, catalog?: (defaults: Sem
     return errors;
   };
   const generatedFiles = (definition: SemanticRouterDefinition): Record<string, string> => {
-    const question = `- semantic:\n    question:\n      department:\n        type: choice\n        state: \"\${body}\"\n        instructions: ${JSON.stringify(definition.instructions)}\n        expert: supportExpert\n        criteria:\n${(definition.actions ?? []).map(action => `          ${action.label}: ${JSON.stringify(action.criteria)}\n`).join('')}          no_match: ${JSON.stringify(definition.noMatchCriteria)}\n`;
+    const selectedExpert = experts.get(definition.expertId ?? '') ?? expert;
+    const guardExpert = publishedGuard(definition.guard, experts)?.expert;
+    const question = `- semantic:\n    question:\n      department:\n        type: choice\n        state: \"\${body}\"\n        instructions: ${JSON.stringify(definition.instructions)}\n        expert: ${selectedExpert.bean}\n        criteria:\n${(definition.actions ?? []).map(action => `          ${action.label}: ${JSON.stringify(action.criteria)}\n`).join('')}          no_match: ${JSON.stringify(definition.noMatchCriteria)}\n`;
     const classify = '- route:\n    id: router-classification\n    from:\n      uri: direct:classify-router\n      steps:\n        - setProperty:\n            name: department\n            expression:\n              language:\n                language: semantic\n                expression: ref:department\n';
     const dispatch = `- route:\n    id: router-dispatch\n    from:\n      uri: direct:dispatch-router\n      steps:\n        - to: direct:classify-router\n        - choice:\n            when:\n${(definition.actions ?? []).map(action => `              - simple: \"\${exchangeProperty.department} == '${action.label}'\"\n                steps:\n                  - to:\n                      uri: kamelet:${action.actionId}\n`).join('')}              - simple: \"\${exchangeProperty.department} == 'no_match'\"\n                steps:\n                  - setBody:\n                      constant: No matching action.\n`;
     const files: Record<string, string> = {
       'index.properties': 'catalog.name=semantic-preview\ncatalog.services=service\ncatalog.routes.service=service/router.camel.yaml\n',
       'service/router.camel.yaml': `${question}${classify}${dispatch}- route:\n    id: router-mcp-entry\n    from:\n      uri: ai-tool:${definition.toolName}\n      steps:\n        - to: direct:dispatch-router\n`,
       'service/preview.camel.yaml': question + classify,
-      'service/semantic-router.properties': `contract.version=1\ncatalog.revision=preview\ncamel.version=4.23.0-SNAPSHOT\nmain=service/router.camel.yaml\npreview.main=service/preview.camel.yaml\nexpert.bean=supportExpert\ntool.name=${definition.toolName}\n`,
+      'service/semantic-router.properties': `contract.version=1\ncatalog.revision=preview\ncamel.version=4.23.0-SNAPSHOT\nmain=service/router.camel.yaml\npreview.main=service/preview.camel.yaml\nexpert.bean=${selectedExpert.bean}\ntool.name=${definition.toolName}\n`,
       'service/service.properties': (definition.actions ?? []).map(action => `action.${action.label}.prefix=${action.configuration?.prefix ?? 'Support'}\n${action.configuration?.credentialRef ? `action.${action.label}.credentialRef={{env:${action.configuration.credentialRef.slice(4)}}}\n` : ''}`).join(''),
-      'service/dependencies.txt': 'camel:ai-tool\ncamel:core\ncamel:direct\ncamel:kamelet\ncamel:semantic\nmvn:org.apache.camel:camel-typesafe-ai:4.23.0-SNAPSHOT\n',
+      'service/dependencies.txt': `camel:ai-tool\ncamel:core\ncamel:direct\ncamel:kamelet\ncamel:semantic\n${[...new Set([selectedExpert.dependency, guardExpert?.dependency].filter(Boolean))].map(dependency => `mvn:${dependency}\n`).join('')}`,
+      'service/experts.json': JSON.stringify({ classifier: selectedExpert, guard: publishedGuard(definition.guard, experts) }),
     };
     for (const action of definition.actions ?? []) {
       files[`service/kamelets/${action.actionId}.kamelet.yaml`] = `apiVersion: camel.apache.org/v1\nkind: Kamelet\nmetadata:\n  name: ${action.actionId}\nspec:\n  template:\n    from:\n      uri: kamelet:source\n      steps:\n        - setBody:\n            constant: \"{{prefix}}\"\n`;
@@ -87,7 +142,7 @@ export async function semanticRouterFixture(page: Page, catalog?: (defaults: Sem
       actionRequests.push(definitionId);
       return json(catalog ? catalog(actions, definitionId) : actions);
     }
-    if (path === '/experts') return json([expert]);
+    if (parts[0] === 'experts') return expertRequest(route, experts, definitions, expertRequests);
     if (path === '/resolve') {
       const name = new URL(request.url()).searchParams.get('name') ?? '';
       resolutions.push(name);
@@ -128,17 +183,16 @@ export async function semanticRouterFixture(page: Page, catalog?: (defaults: Sem
     if (parts[1] === 'preview') {
       const { message } = request.postDataJSON() as { message: string };
       previews.push(message);
-      const error = message.includes('provider_error') ? 'Expert provider is unavailable' : message.includes('malformed') ? 'Malformed expert decision' : null;
-      const label = message.toLowerCase().includes('invoice') ? 'wsr_billing_action' : message.toLowerCase().includes('software') ? 'wsr_technical_action' : null;
-      return json({ label, noMatch: !error && !label, error, durationMillis: 5, diagnostics: {} });
+      return json(previewResult(message, definitions.get(id)?.guard));
     }
     if (parts[1] === 'publish') {
       const errors = validate(definitions.get(id) ?? {}, false);
       if (errors.length) return route.fulfill({ status: 422, json: { error: { message: errors.map(error => `${error.field}: ${error.message}`).join('; ') } } });
       publishRequests.push(id);
       const publication: SemanticPublication = {
-        definitionId: id, toolName: definitions.get(id)?.toolName, expert, revision: 'revision-001', catalogName: 'fixture-catalog', sha256: 'a'.repeat(64),
+        definitionId: id, toolName: definitions.get(id)?.toolName, expert: experts.get(definitions.get(id)?.expertId ?? ""), revision: 'revision-001', catalogName: 'fixture-catalog', sha256: 'a'.repeat(64),
         mainFile: 'service/router.camel.yaml', camelVersion: '4.23.0-SNAPSHOT', camelBuild: 'fixture-tested-build',
+        guard: publishedGuard(definitions.get(id)?.guard, experts),
         downloadUrl: '/api/v1/service-catalog/download?name=fixture-catalog', status: 'published',
         deploymentInstructions: ['Set WSR_CATALOG_REVISION=revision-001. Start WSR with the published catalog.'],
       };
@@ -157,5 +211,5 @@ export async function semanticRouterFixture(page: Page, catalog?: (defaults: Sem
     }
     return json(definitions.get(id));
   });
-  return { definitions, previews, publications, currentPublications, resolutionErrors, resolutions, actionRequests, fileRequests, fileStatuses, saves, publishRequests };
+  return { experts, expertRequests, definitions, previews, publications, currentPublications, resolutionErrors, resolutions, actionRequests, fileRequests, fileStatuses, saves, publishRequests };
 }

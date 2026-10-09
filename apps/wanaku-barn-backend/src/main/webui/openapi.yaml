@@ -452,24 +452,81 @@ components:
         expectedLabel:
           type: string
           description: Expected action label or no_match
+        expectedBlocked:
+          type:
+          - boolean
+          - "null"
+          description: Expect guard rejection instead of classification; absent means
+            false
     SemanticExpert:
       type: object
+      required:
+      - id
+      - name
+      - bean
+      - dependency
       properties:
         id:
           type: string
           description: Configured expert catalog identifier
+          pattern: "[a-z][a-z0-9_-]{0,63}"
         name:
           type: string
           description: Configured expert display name
+          pattern: \S
+          maxLength: 120
         bean:
           type: string
           description: Named Camel expert instance configured externally by the deployment
+          pattern: "[A-Za-z][A-Za-z0-9_]{0,63}"
         dependency:
           type: string
           description: Maven group:artifact:version implementation dependency
+          pattern: "[A-Za-z0-9_.-]+:[A-Za-z0-9_.-]+:[A-Za-z0-9_.-]+"
         supportsConfidence:
           type: boolean
           description: Whether this contract exposes confidence controls
+        operations:
+          type: array
+          items:
+            $ref: "#/components/schemas/SemanticExpertOperation"
+          description: Administrator declared native operations; omitted legacy entries
+            expose choice
+          maxItems: 32
+    SemanticExpertOperation:
+      type: object
+      required:
+      - name
+      - inputTypes
+      - resultType
+      properties:
+        name:
+          type: string
+          description: Native operation name
+          pattern: "[A-Za-z][A-Za-z0-9_-]{0,63}"
+        inputTypes:
+          type: array
+          items:
+            type: string
+            pattern: \S
+            maxLength: 64
+          description: "Supported input kinds, for example text"
+          maxItems: 16
+          minItems: 1
+        resultType:
+          type: string
+          description: "Native result kind, for example choice or boolean"
+          pattern: \S
+          maxLength: 64
+        resultMeaning:
+          type: string
+          description: Human-readable meaning of the result
+          maxLength: 512
+        parameterSchema:
+          type: object
+          additionalProperties: {}
+          description: "Draft-07 JSON Schema for operation parameters, without external\
+            \ references"
     SemanticFieldError:
       type: object
       properties:
@@ -480,9 +537,41 @@ components:
         message:
           type: string
           description: Actionable structural validation error
+    SemanticGuard:
+      type: object
+      properties:
+        expertId:
+          type: string
+        operation:
+          type: string
+        parameters:
+          type: object
+          additionalProperties: {}
+        rejectWhen:
+          type: boolean
+          description: Boolean verdict that rejects the request
+    SemanticGuardPreview:
+      type: object
+      properties:
+        value:
+          type: boolean
+        diagnostics:
+          type: object
+          additionalProperties: {}
     SemanticPreview:
       type: object
       properties:
+        blocked:
+          type: boolean
+          description: True when the guard rejected the request before classification
+        guard:
+          description: Guard verdict; absent when disabled or failed
+          type:
+          - object
+          - "null"
+          anyOf:
+          - $ref: "#/components/schemas/SemanticGuardPreview"
+          - type: "null"
         label:
           type:
           - string
@@ -537,6 +626,12 @@ components:
           anyOf:
           - $ref: "#/components/schemas/SemanticExpert"
           - type: "null"
+        guard:
+          description: Immutable guard configuration and expert snapshot
+          type: object
+          anyOf:
+          - $ref: "#/components/schemas/SemanticPublishedGuard"
+          - type: "null"
         revision:
           type: string
           description: Immutable revision derived from the generated catalog inputs
@@ -568,6 +663,18 @@ components:
         status:
           type: string
           description: Publication state; does not assert runtime readiness or activation
+    SemanticPublishedGuard:
+      type: object
+      properties:
+        expert:
+          $ref: "#/components/schemas/SemanticExpert"
+        operation:
+          type: string
+        parameters:
+          type: object
+          additionalProperties: {}
+        rejectWhen:
+          type: boolean
     SemanticResolvedPublication:
       type: object
       properties:
@@ -612,6 +719,14 @@ components:
           anyOf:
           - $ref: "#/components/schemas/SemanticExpert"
           - type: "null"
+        guard:
+          description: Guard configuration captured in the selected publication
+          type:
+          - object
+          - "null"
+          anyOf:
+          - $ref: "#/components/schemas/SemanticPublishedGuard"
+          - type: "null"
     SemanticRouterDefinition:
       type: object
       properties:
@@ -641,6 +756,14 @@ components:
         expertId:
           type: string
           description: Configured expert catalog identifier
+        guard:
+          description: Optional Boolean guard evaluated before classification
+          type:
+          - object
+          - "null"
+          anyOf:
+          - $ref: "#/components/schemas/SemanticGuard"
+          - type: "null"
         semanticInput:
           type: string
           description: Invocation field supplied to native semantic evaluation
@@ -989,6 +1112,13 @@ components:
           type: object
           additionalProperties:
             type: string
+    WanakuResponseSemanticExpert:
+      type: object
+      properties:
+        error:
+          $ref: "#/components/schemas/WanakuError"
+        data:
+          $ref: "#/components/schemas/SemanticExpert"
     WanakuResponseSemanticPreview:
       type: object
       properties:
@@ -1592,6 +1722,117 @@ paths:
           description: Invalid request
         "404":
           description: Definition not found
+    post:
+      summary: Create expert metadata
+      description: Manage administrator metadata; deployment owns runtime bean configuration.
+      tags:
+      - Semantic routers
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SemanticExpert"
+        required: true
+      responses:
+        "200":
+          description: Operation completed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WanakuResponseSemanticExpert"
+        "400":
+          description: Invalid request
+        "404":
+          description: Expert not found
+        "409":
+          description: Duplicate identity or referenced expert
+        "422":
+          description: Invalid expert metadata
+  /api/v1/semantic-routers/experts/{id}:
+    put:
+      summary: Update expert metadata
+      description: Manage administrator metadata; deployment owns runtime bean configuration.
+      tags:
+      - Semantic routers
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SemanticExpert"
+        required: true
+      responses:
+        "200":
+          description: Operation completed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WanakuResponseSemanticExpert"
+        "400":
+          description: Invalid request
+        "404":
+          description: Expert not found
+        "409":
+          description: Duplicate identity or referenced expert
+        "422":
+          description: Invalid expert metadata
+    delete:
+      summary: Delete unreferenced expert metadata
+      description: Manage administrator metadata; deployment owns runtime bean configuration.
+      tags:
+      - Semantic routers
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          description: Operation completed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WanakuResponseVoid"
+        "400":
+          description: Invalid request
+        "404":
+          description: Expert not found
+        "409":
+          description: Duplicate identity or referenced expert
+        "422":
+          description: Invalid expert metadata
+    get:
+      summary: Read expert metadata
+      description: Manage administrator metadata; deployment owns runtime bean configuration.
+      tags:
+      - Semantic routers
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          description: Operation completed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WanakuResponseSemanticExpert"
+        "400":
+          description: Invalid request
+        "404":
+          description: Expert not found
+        "409":
+          description: Duplicate identity or referenced expert
+        "422":
+          description: Invalid expert metadata
   /api/v1/semantic-routers/files:
     post:
       summary: Inspect generated semantic router files

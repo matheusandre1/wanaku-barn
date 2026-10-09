@@ -30,6 +30,9 @@ public class SemanticActionCatalog {
     private final Map<String, SemanticExpert> experts = new LinkedHashMap<>();
 
     @Inject
+    SemanticExpertCatalog expertCatalog;
+
+    @Inject
     KameletBean kamelets;
 
     @Inject
@@ -40,6 +43,7 @@ public class SemanticActionCatalog {
 
     @PostConstruct
     void init() {
+        if (expertCatalog != null) return;
         try {
             if (expertsFile.isPresent()) {
                 if (Files.size(Path.of(expertsFile.get())) > 64 * 1024)
@@ -61,6 +65,7 @@ public class SemanticActionCatalog {
     }
 
     private void registerExpert(SemanticExpert expert) throws IOException {
+        if (expert != null) SemanticExpertCatalog.legacyOperations(expert);
         if (expert == null
                 || expert.id == null
                 || !expert.id.matches("[a-z][a-z0-9_-]{0,63}")
@@ -70,6 +75,11 @@ public class SemanticActionCatalog {
                 || !expert.dependency.matches("[A-Za-z0-9_.-]+:[A-Za-z0-9_.-]+:[A-Za-z0-9_.-]+")
                 || expert.supportsConfidence
                 || experts.putIfAbsent(expert.id, expert) != null) throw new IOException("Invalid configured expert");
+    }
+
+    /** Coordinates expert metadata with draft references and immutable publication. */
+    Object expertMutationLock() {
+        return expertCatalog == null ? this : expertCatalog.mutationLock();
     }
 
     /** Returns current eligible actions in stable catalog order. @return current semantic actions */
@@ -119,7 +129,7 @@ public class SemanticActionCatalog {
 
     /** Returns configured expert identifiers without credentials. @return configured expert metadata */
     public List<SemanticExpert> experts() {
-        return new ArrayList<>(experts.values());
+        return expertCatalog != null ? expertCatalog.list() : new ArrayList<>(experts.values());
     }
 
     SemanticAction action(SemanticActionSelection selection) {
@@ -134,7 +144,12 @@ public class SemanticActionCatalog {
     }
 
     SemanticExpert expert(String id) {
-        return experts.get(id);
+        if (expertCatalog == null) return experts.get(id);
+        try {
+            return expertCatalog.get(id);
+        } catch (NotFoundException e) {
+            return null;
+        }
     }
 
     byte[] resource(SemanticActionSelection selection) {

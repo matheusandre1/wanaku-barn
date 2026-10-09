@@ -26,6 +26,9 @@ public class SemanticRouterResource implements SemanticRouterService {
     SemanticRouterBean bean;
 
     @Inject
+    SemanticExpertCatalog expertCatalog;
+
+    @Inject
     AuditContext auditContext;
     /** List eligible curated Kamelet actions. */
     @Override
@@ -36,6 +39,27 @@ public class SemanticRouterResource implements SemanticRouterService {
     @Override
     public WanakuResponse<List<SemanticExpert>> experts() {
         return new WanakuResponse<>(bean.experts());
+    }
+    /** Manage expert metadata. */
+    @Override
+    public WanakuResponse<SemanticExpert> createExpert(@Valid SemanticExpert expert) {
+        return new WanakuResponse<>(expertCatalog.create(expert));
+    }
+    /** Manage expert metadata. */
+    @Override
+    public WanakuResponse<SemanticExpert> getExpert(String id) {
+        return new WanakuResponse<>(expertCatalog.get(id));
+    }
+    /** Manage expert metadata. */
+    @Override
+    public WanakuResponse<SemanticExpert> updateExpert(String id, @Valid SemanticExpert expert) {
+        return new WanakuResponse<>(expertCatalog.update(id, expert));
+    }
+    /** Manage expert metadata. */
+    @Override
+    public WanakuResponse<Void> removeExpert(String id) {
+        expertCatalog.remove(id);
+        return new WanakuResponse<>();
     }
     /** List saved router drafts. */
     @Override
