@@ -12,7 +12,8 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class KameletParameterDefaultsTest {
     private final KameletParser parser = new KameletParser();
-    private final String yaml = KameletTestSupport.actionYaml("support-action", "Reply");
+    private final String yaml =
+            KameletTestSupport.actionYaml("support-action", "Reply").replace("\r\n", "\n");
 
     @Test
     void acceptsSshSinkWithNumericPortDefaultWithoutChangingItsSchemaOrYaml() {

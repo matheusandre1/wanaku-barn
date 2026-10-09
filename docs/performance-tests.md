@@ -9,7 +9,7 @@ k6 run --vus 10 --duration 30s tests/load/mcp-tools-invoke-sse.js
 k6 run --vus 10 --duration 30s tests/load/mcp-resources-read-sse.js
 ```
 
-#### Mock MCP Server Configuration
+## Mock MCP Server Configuration
 
 | Property | Default | Description |
 |----------|---------|-------------|
@@ -22,7 +22,7 @@ All properties can be overridden via `-D` flags on the command line.
 
 **Important:** The `namespace` determines which SSE endpoint exposes the tools. If set to `test`, tools appear under an authenticated namespace (e.g., `/ns-9/mcp/sse`). Set to `public` for unauthenticated access at `/public/mcp/sse`, which is what the k6 scripts target.
 
-#### Data Store
+## Data Store
 
 The router persists forwards in `~/.wanaku/barn/`. If you see stale data between runs, clear it:
 
@@ -33,7 +33,7 @@ rm -rf ~/.wanaku/barn/tool/{data,index}/*
 rm -rf ~/.wanaku/barn/resource/{data,index}/*
 ```
 
-### 2. Full Baseline vs Patched Evaluation
+## Full Baseline vs Patched Evaluation
 
 For comparing main vs a feature branch through the MCP bridge, build and test each branch separately:
 
