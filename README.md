@@ -1,4 +1,4 @@
-# Wanaku - A MCP Router that connects everything
+# Wanaku Barn - A Collection of Enterprise Utilities for the Wanaku Governed Execution Proxy
 
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
 [![Build](https://img.shields.io/github/actions/workflow/status/wanaku-ai/wanaku/main-build.yml?branch=main)](https://github.com/wanaku-ai/wanaku/actions)
