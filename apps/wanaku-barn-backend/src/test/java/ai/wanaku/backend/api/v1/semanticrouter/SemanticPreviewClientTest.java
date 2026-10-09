@@ -18,7 +18,7 @@ class SemanticPreviewClientTest {
         server.createContext("/api/v1/preview", request -> {
             seen.set(new String(request.getRequestBody().readAllBytes(), java.nio.charset.StandardCharsets.UTF_8));
             byte[] response =
-                    "{\"label\":\"billing\",\"diagnostics\":{\"providerToken\":\"sensitive\",\"confidence\":0.8,\"probabilities\":{\"billing\":0.8,\"technical\":0.2,\"injected\":1}}}"
+                    "{\"resultType\":\"choice\",\"value\":\"billing\",\"diagnostics\":{\"providerToken\":\"sensitive\",\"confidence\":0.8,\"probabilities\":{\"billing\":0.8,\"technical\":0.2,\"injected\":1}}}"
                             .getBytes(java.nio.charset.StandardCharsets.UTF_8);
             request.sendResponseHeaders(200, response.length);
             request.getResponseBody().write(response);
@@ -32,9 +32,21 @@ class SemanticPreviewClientTest {
             assertThat(result.error).isNull();
             assertThat(result.diagnostics).containsEntry("confidence", 0.8).doesNotContainKey("providerToken");
             assertThat(result.diagnostics.get("probabilities")).isEqualTo(Map.of("billing", 0.8, "technical", 0.2));
-            assertThat(seen.get())
-                    .contains("supportExpert", "instructions", "criteria", "no_match", "message")
-                    .doesNotContain("configuration", "prefix", "actionId", "kamelet", "dispatch");
+            var payload = client.mapper.readTree(seen.get());
+            assertThat(payload.size()).isEqualTo(4);
+            assertThat(payload.path("expertBean").textValue()).isEqualTo("supportExpert");
+            assertThat(payload.path("operation").textValue()).isEqualTo("choice");
+            assertThat(payload.path("state").textValue()).isEqualTo("Invoice question");
+            assertThat(payload.path("parameters"))
+                    .isEqualTo(client.mapper.valueToTree(Map.of(
+                            "instructions",
+                            "Select the action for this support message",
+                            "criteria",
+                            Map.of(
+                                    "billing", "billing requests",
+                                    "technical", "technical requests",
+                                    "no_match", "Neither action applies"))));
+            assertThat(seen.get()).doesNotContain("configuration", "prefix", "actionId", "kamelet", "dispatch");
         } finally {
             server.stop(0);
         }
@@ -42,7 +54,17 @@ class SemanticPreviewClientTest {
 
     @Test
     void providerFailureAndMalformedLabelsRemainErrors() throws Exception {
-        for (String response : java.util.List.of("{\"label\":\"unconfigured\"}", "not JSON")) {
+        for (String response : java.util.List.of(
+                "{\"resultType\":\"choice\",\"value\":\"unconfigured\"}",
+                "{\"resultType\":\"text\",\"value\":\"billing\"}",
+                "{\"value\":\"billing\"}",
+                "{\"resultType\":\"choice\"}",
+                "{\"resultType\":\"choice\",\"value\":null}",
+                "{\"resultType\":\"choice\",\"value\":42}",
+                "{\"resultType\":\"choice\",\"value\":{\"label\":\"billing\"}}",
+                "{\"resultType\":\"choice\",\"value\":[\"billing\"]}",
+                "{\"label\":\"billing\"}",
+                "not JSON")) {
             HttpServer server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
             server.createContext("/api/v1/preview", request -> {
                 byte[] bytes = response.getBytes(java.nio.charset.StandardCharsets.UTF_8);
@@ -80,7 +102,8 @@ class SemanticPreviewClientTest {
     void explicitNoMatchHasNoError() throws Exception {
         HttpServer server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
         server.createContext("/api/v1/preview", request -> {
-            byte[] bytes = "{\"label\":\"no_match\"}".getBytes(java.nio.charset.StandardCharsets.UTF_8);
+            byte[] bytes = "{\"resultType\":\"choice\",\"value\":\"no_match\"}"
+                    .getBytes(java.nio.charset.StandardCharsets.UTF_8);
             request.sendResponseHeaders(200, bytes.length);
             request.getResponseBody().write(bytes);
             request.close();

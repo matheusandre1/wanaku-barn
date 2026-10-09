@@ -229,6 +229,49 @@ class CatalogValidatorTest {
         assertTrue(hasIssue(result.errors(), "index.properties", "must provide a properties file"));
     }
 
+    @Test
+    void testSemanticBuildMetadataIsOptional() {
+        for (String build : List.of("", "camel.build=20261009.123456\n")) {
+            ValidationResult result = validator.validateCatalog(semanticCatalog("1", "4.23.0-SNAPSHOT", build));
+            assertTrue(result.valid(), () -> "Unexpected errors: " + result.errors());
+        }
+    }
+
+    @Test
+    void testUnsupportedSemanticContractAndCamelVersionAreRejected() {
+        for (DataStore data :
+                List.of(semanticCatalog("2", "4.23.0-SNAPSHOT", ""), semanticCatalog("1", "4.22.1", ""))) {
+            ValidationResult result = validator.validateCatalog(data);
+            assertEquals(1, result.errors().size());
+            assertEquals(
+                    "Unsupported semantic runtime contract or Camel version",
+                    result.errors().getFirst().message());
+        }
+    }
+
+    @Test
+    void testLegacySemanticQuestionIsRejected() throws java.io.IOException {
+        byte[] yaml = ("- semantic:\n    question:\n      department:\n        type: choice\n"
+                        + "        expert: supportExpert\n        state: ${body}\n"
+                        + "        instructions: Classify\n        criteria:\n          no_match: Other\n")
+                .getBytes(StandardCharsets.UTF_8);
+        assertFalse(ai.wanaku.backend.api.v1.semanticrouter.SemanticYamlValidator.validate(yaml)
+                .isEmpty());
+    }
+
+    private static DataStore semanticCatalog(String contract, String version, String build) {
+        return catalog(
+                defaultIndex(),
+                Map.of(
+                        "sample/sample.camel.yaml",
+                        VALID_ROUTES,
+                        "sample/action.kamelet.yaml",
+                        "apiVersion: camel.apache.org/v1\nkind: Kamelet\n",
+                        "service/semantic-router.properties",
+                        "contract.version=" + contract + "\ncamel.version=" + version + "\n" + build
+                                + "main=sample/sample.camel.yaml\nkamelets=sample/action.kamelet.yaml\n"));
+    }
+
     // Helpers
 
     private static String defaultIndex() {

@@ -80,11 +80,13 @@ Unknown expert fields are rejected. The initial choice contract does not expose 
 
 ## Native Camel build
 
-The tested runtime uses Camel `4.23.0-SNAPSHOT`, timestamp `20261006.103638`. WSR records fixed timestamped coordinates and JAR checksums for all Camel components. Use its dependency lock and checksum verification to reproduce that build. A moving snapshot coordinate alone is not a deployment pin.
+Generated catalogs target Camel `4.23.0-SNAPSHOT`. The bundled schema and generated build hint use timestamp `20261009.103642`. WSR deployments record fixed timestamped coordinates and JAR checksums for all Camel components. Use the deployment dependency lock and checksum verification to reproduce its runtime build. A moving snapshot coordinate alone is not a deployment pin.
 
-Barn's ordinary catalog validator remains on Camel `4.22.1`. Semantic catalogs use a separately bundled YAML DSL schema from `camel-yaml-dsl-4.23.0-20261006.103638-33.jar`. This avoids changing unrelated Barn Camel dependencies. The schema is Apache Camel material licensed under Apache License 2.0.
+Barn's ordinary catalog validator remains on Camel `4.22.1`. Semantic catalogs use a separately bundled YAML DSL schema from `camel-yaml-dsl-4.23.0-20261009.103642-37.jar`. This avoids changing unrelated Barn Camel dependencies. The schema is Apache Camel material licensed under Apache License 2.0.
 
-The pinned build supports native `semantic.question`, `type: choice`, `state`, `instructions`, `criteria`, and `expert`. The expert value names a Camel bean. Its language expression is `ref:department`. Selection occurs once in `direct:classify-router`. Camel EIPs map fixed labels to fixed Kamelet endpoints.
+The schema build includes [Camel PR #27494](https://github.com/apache/camel/pull/27494), merged as `7c0fca7a09cb7cc2acf70715edd597a8adb334c1`. The schema artifact and SHA-256 are recorded in [`semanticCamelYamlDsl.provenance.properties`](../apps/wanaku-barn-backend/src/main/resources/schema/semanticCamelYamlDsl.provenance.properties).
+
+Generated catalogs declare `semantic.evaluation.department` with `operation: choice`, `state: ${body}`, and `expert` naming a Camel bean. `parameters` contains `instructions` and the fixed label-to-criterion map `criteria`. Barn does not generate the legacy `semantic.question` or `type: choice` declaration. The native choice operation returns one criterion label; evaluation errors remain distinct from the explicit `no_match` criterion. Its language expression is `ref:department`. Selection occurs once in `direct:classify-router`. Camel EIPs map fixed labels to fixed Kamelet endpoints.
 
 The exact build includes the expert contract changes associated with [CAMEL-25382](https://issues.apache.org/jira/browse/CAMEL-25382). This implementation uses the APIs in that build. It does not assume that every illustrative proposal in the ticket is available. See the current [semantic language documentation](https://camel.apache.org/components/next/languages/semantic-language.html), [evaluation design](https://camel.apache.org/blog/2026/09/semantic-evaluation-system-one/), and [routing discussion](https://camel.apache.org/blog/2026/10/semantic-agent-routing/).
 
@@ -107,18 +109,20 @@ The auxiliary manifest is `service/semantic-router.properties`:
 contract.version=1
 catalog.revision=<revision>
 camel.version=4.23.0-SNAPSHOT
-camel.build=20261006.103638
+camel.build=20261009.103642
 main=service/router.camel.yaml
 preview.main=service/preview.camel.yaml
 input.profile=message-to-string/v1
 tool.name=<tool-name>
 tool.tags=wsr-semantic-router
 expert.bean=supportExpert
-question=department
+evaluation=department
 kamelets=service/kamelets/wsr-billing-action.kamelet.yaml,service/kamelets/wsr-technical-action.kamelet.yaml
 dependencies=service/dependencies.txt
 configuration=service/service.properties
 ```
+
+`contract.version` remains `1`. `camel.build` is an optional informational build hint for WSR; deployments own their dependency lock. It does not replace the revision and complete archive digest checks. New Barn publications include the schema build hint.
 
 `kamelets` is a comma-separated list of exact relative file paths. It is not a directory. The catalog name and selected service have separate runtime settings: `wsr.catalog.name` and `wsr.catalog.service=service`.
 
@@ -126,7 +130,7 @@ Barn serializes YAML with a YAML serializer. It serializes properties with the J
 
 The publication response provides a revision, complete ZIP SHA-256, main file, runtime pin, download URL, and deployment instructions. WSR must verify the external digest and expected revision before loading the catalog. Publishing does not start WSR or register a forward. The authoring API does not fabricate an active-runtime status. Read WSR readiness and loaded revision from its observed runtime endpoint.
 
-Each new publication records the tool name and expert snapshot. Barn updates a separate current-publication record after the catalog and publication record are stored. Draft edits do not change that selection. Republishing an existing revision selects that revision again. The current-publication record contains JSON and uses the `semantic-current-publication` type. Generic mutation endpoints protect this record.
+Each new publication records the tool name and expert snapshot. Barn updates a separate current-publication record after the catalog and publication record are stored. Draft edits do not change that selection. Republishing an existing revision selects that revision again without rewriting its archive. Existing question-era revisions remain immutable. Publish the saved definition with the migrated generator to obtain a new evaluation-era revision, then restart WSR against that revision. The current-publication record contains JSON and uses the `semantic-current-publication` type. Generic mutation endpoints protect this record.
 
 Removing a draft preserves its published catalogs. The existing catalog downloader returns `WanakuResponse<DataStore>` with a Base64 ZIP. No second download protocol is introduced.
 
@@ -165,7 +169,9 @@ Start the default expert runtime with `runtime --semantic-route support-route`. 
 
 Set `wanaku.semantic.preview-url` to the dedicated WSR preview endpoint. Set `wanaku.semantic.preview-token` if that deployment requires a bearer token. The URL and token are administrator configuration. They are not supplied by the caller or saved in a definition.
 
-Barn sends only `input`, `instructions`, `criteria`, `expertBean`, and `message`. It does not send action endpoints, Kamelet resources, action configuration, or executable YAML. WSR creates an isolated Camel context with only a semantic declaration and classification route. It does not insert routes into a production context.
+Barn sends only `expertBean`, `operation: "choice"`, `parameters` containing `instructions` and `criteria`, and `state` containing the example message. It does not send action endpoints, Kamelet resources, action configuration, or executable YAML. WSR creates an isolated Camel context with only an evaluation declaration and classification route using the same choice operation and parameters as production. It does not insert routes into a production context.
+
+WSR must return `resultType: "choice"` and a textual `value` equal to a configured action label or `no_match`. Barn rejects other result types, unknown labels, and malformed values.
 
 Preview returns `label`, `noMatch`, `durationMillis`, `error`, and `diagnostics`. Provider failure and malformed labels remain errors. Confidence is never invented. Diagnostics include only available finite confidence or per-label probabilities in the range zero through one. Provider text, credentials, and unknown metadata are excluded.
 

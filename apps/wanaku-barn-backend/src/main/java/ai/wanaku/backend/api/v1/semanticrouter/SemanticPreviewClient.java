@@ -80,16 +80,15 @@ public class SemanticPreviewClient {
             return finish(result, start);
         }
         try {
+            Map<String, String> criteria = SemanticCatalogGenerator.criteria(definition);
             Map<String, Object> payload = Map.of(
-                    "input",
-                    "message",
-                    "instructions",
-                    definition.instructions,
-                    "criteria",
-                    SemanticCatalogGenerator.criteria(definition),
                     "expertBean",
                     catalog.expert(definition.expertId).bean,
-                    "message",
+                    "operation",
+                    "choice",
+                    "parameters",
+                    Map.of("instructions", definition.instructions, "criteria", criteria),
+                    "state",
                     message);
             HttpRequest.Builder request = HttpRequest.newBuilder(URI.create(url.get()))
                     .timeout(Duration.ofSeconds(timeoutSeconds))
@@ -114,16 +113,17 @@ public class SemanticPreviewClient {
                 return finish(result, start);
             }
             JsonNode value = mapper.readTree(body);
-            String label = value.path("label").asText();
-            if (!SemanticCatalogGenerator.criteria(definition).containsKey(label)) {
+            JsonNode choice = value.path("value");
+            if (!"choice".equals(value.path("resultType").asText())
+                    || !choice.isTextual()
+                    || !criteria.containsKey(choice.textValue())) {
                 result.error = "Semantic evaluation returned an invalid label";
                 return finish(result, start);
             }
+            String label = choice.textValue();
             result.label = label;
             result.noMatch = "no_match".equals(label);
-            result.diagnostics = safeDiagnostics(
-                    value.path("diagnostics"),
-                    SemanticCatalogGenerator.criteria(definition).keySet());
+            result.diagnostics = safeDiagnostics(value.path("diagnostics"), criteria.keySet());
         } catch (IOException e) {
             LOG.debug("Semantic preview transport failed", e);
             result.error = "Semantic evaluation failed";

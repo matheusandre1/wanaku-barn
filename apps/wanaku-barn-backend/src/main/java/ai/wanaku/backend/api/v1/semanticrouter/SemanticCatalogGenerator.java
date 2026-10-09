@@ -28,7 +28,7 @@ import com.fasterxml.jackson.dataformat.yaml.YAMLMapper;
 @ApplicationScoped
 public class SemanticCatalogGenerator {
     public static final String CAMEL_VERSION = "4.23.0-SNAPSHOT";
-    public static final String CAMEL_BUILD = "20261006.103638";
+    public static final String CAMEL_BUILD = "20261009.103642";
     public static final String MAIN = "service/router.camel.yaml";
 
     @Inject
@@ -79,7 +79,7 @@ public class SemanticCatalogGenerator {
             manifest.put("tool.name", definition.toolName);
             manifest.put("tool.tags", "wsr-semantic-router");
             manifest.put("expert.bean", catalog.expert(definition.expertId).bean);
-            manifest.put("question", "department");
+            manifest.put("evaluation", "department");
             manifest.put("kamelets", String.join(",", kamelets));
             manifest.put("dependencies", "service/dependencies.txt");
             manifest.put("configuration", "service/service.properties");
@@ -119,20 +119,17 @@ public class SemanticCatalogGenerator {
 
     /** Uses the same native semantic declaration for classification and production dispatch. */
     List<Object> routes(SemanticRouterDefinition definition, boolean preview) {
-        Map<String, String> criteria = criteria(definition);
-        Map<String, Object> question = map(
-                "type",
+        Map<String, Object> evaluation = map(
+                "operation",
                 "choice",
                 "state",
                 "${body}",
-                "instructions",
-                definition.instructions,
                 "expert",
                 catalog.expert(definition.expertId).bean,
-                "criteria",
-                criteria);
+                "parameters",
+                map("instructions", definition.instructions, "criteria", criteria(definition)));
         List<Object> routes = new ArrayList<>();
-        routes.add(map("semantic", map("question", map("department", question))));
+        routes.add(map("semantic", map("evaluation", map("department", evaluation))));
         routes.add(route(
                 "router-classification",
                 "direct:classify-router",

@@ -32,9 +32,9 @@ Configuration applies to the deployment. It does not contain per-request argumen
 5. Enter the selection criteria for each action.
 6. Enter the criteria for no match.
 
-The expert identifies one predefined label. The route maps that label to a fixed action. Labels contain lowercase letters, digits, and underscores. The `no_match` label is reserved.
+The native `choice` evaluation identifies one predefined criterion label. The route maps that label to a fixed action. Labels contain lowercase letters, digits, and underscores. The `no_match` label is reserved.
 
-**Message to classify** selects the request text that the expert reads. The current profile uses the MCP request's `message` field. For example, a request can contain `{"message":"I need a refund for my invoice."}`. The generated Camel route extracts this field into the route body. The generated semantic question reads that body with `${body}`. The wizard does not accept other input expressions.
+**Message to classify** selects the request text that the expert reads. The current profile uses the MCP request's `message` field. For example, a request can contain `{"message":"I need a refund for my invoice."}`. The generated Camel route extracts this field into the route body. The generated semantic evaluation reads that body with `${body}`. The wizard does not accept other input expressions.
 
 **Classification instructions** give the expert the rules that apply to every request. For example: “Which team should handle this support request? If the state is an envelope, classify `message` and use `serviceScope` only as background context.” Enter the rules for a specific action in **When to select** for that action. Enter representative request messages in the Examples step.
 
@@ -50,7 +50,7 @@ Expert credentials, model settings, timeouts, and limits belong to deployment co
 4. Select **Preview example**.
 5. Compare the expected and actual labels.
 
-A preview saves the current draft. It uses the same definition and expert configuration as production. It performs classification only. It does not execute an action. The UI shows evaluation errors separately from no match. It shows evaluation time and diagnostics when the API supplies them.
+A preview saves the current draft. It uses the same definition and expert configuration as production. It sends the native `choice` operation, its instructions and criteria as parameters, and the example message as state. It performs classification only. It does not execute an action. The UI shows evaluation errors separately from no match. It shows evaluation time and diagnostics when the API supplies them.
 
 Use **Back** to change an earlier step. The wizard retains the entered values and validation errors. Select **Save draft** to keep an incomplete definition. Open the saved definition from the list to continue later.
 
@@ -72,7 +72,7 @@ Replace `support-route` with the saved name. The local defaults use Barn at `htt
 
 Publication creates an immutable catalog revision. Publication does not start WSR. The UI reports runtime status as not observed because Barn does not have a runtime observation for this workflow. WSR must load the selected revision and pass its startup checks before it registers with Wanaku. Restart or replace WSR to select another revision.
 
-Barn records the current publication after a successful publish operation. Draft edits do not change this selection. WSR reads it once at startup. Changes to a saved definition do not change an existing publication. Publish the definition again to create a revision for those changes.
+Barn records the current publication after a successful publish operation. Draft edits do not change this selection. WSR reads it once at startup. Changes to a saved definition do not change an existing publication. Publish the definition again to create a revision for those changes. After upgrading to the evaluation contract, republish existing definitions and restart WSR to load the new revision. Earlier question-era archives remain immutable. The artifact contract version stays `1`; `camel.build` is an optional build hint, and the deployment dependency lock determines the runtime build.
 
 ## Download stored artifacts
 

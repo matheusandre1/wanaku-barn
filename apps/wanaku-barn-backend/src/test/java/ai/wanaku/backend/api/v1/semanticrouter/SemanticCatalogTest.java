@@ -170,6 +170,61 @@ class SemanticCatalogTest {
     }
 
     @Test
+    void productionAndPreviewShareNativeEvaluationAndFixedDispatchLabels() throws Exception {
+        SemanticRouterDefinition definition = definition();
+        var entries = CatalogZipReader.readEntriesAsText(generator.generate(definition, "r1", "support-r1"));
+        YAMLMapper mapper = new YAMLMapper();
+        var production = mapper.readTree(entries.get(SemanticCatalogGenerator.MAIN));
+        var preview = mapper.readTree(entries.get("service/preview.camel.yaml"));
+        assertThat(preview).hasSize(2);
+        assertThat(production.get(0)).isEqualTo(preview.get(0));
+        assertThat(production.get(1)).isEqualTo(preview.get(1));
+        var semantic = production.get(0).path("semantic");
+        assertThat(semantic.has("question")).isFalse();
+        var evaluation = semantic.path("evaluation").path("department");
+        assertThat(evaluation.size()).isEqualTo(4);
+        assertThat(evaluation.path("operation").asText()).isEqualTo("choice");
+        assertThat(evaluation.path("state").asText()).isEqualTo("${body}");
+        assertThat(evaluation.path("expert").asText()).isEqualTo("supportExpert");
+        var parameters = evaluation.path("parameters");
+        assertThat(parameters.size()).isEqualTo(2);
+        assertThat(parameters.path("instructions").asText()).isEqualTo(definition.instructions);
+        assertThat(parameters.path("criteria"))
+                .isEqualTo(mapper.valueToTree(SemanticCatalogGenerator.criteria(definition)));
+        var classification = production.get(1).path("route").path("from").path("steps");
+        assertThat(classification).hasSize(1);
+        assertThat(classification
+                        .get(0)
+                        .path("setProperty")
+                        .path("expression")
+                        .path("language")
+                        .path("expression")
+                        .asText())
+                .isEqualTo("ref:department");
+        var dispatch = production.get(2).path("route").path("from").path("steps");
+        assertThat(dispatch).hasSize(2);
+        assertThat(dispatch.get(0).path("to").asText()).isEqualTo("direct:classify-router");
+        var branches = dispatch.get(1).path("choice").path("when");
+        assertThat(branches).hasSize(3);
+        for (int index = 0; index < 3; index++) {
+            String label = List.of("billing", "technical", "no_match").get(index);
+            assertThat(branches.get(index).path("simple").asText())
+                    .isEqualTo("${exchangeProperty.department} == '" + label + "'");
+        }
+        assertThat(branches.get(2)
+                        .path("steps")
+                        .get(0)
+                        .path("setBody")
+                        .path("constant")
+                        .asText())
+                .isEqualTo("No matching action.");
+        java.util.Properties manifest = new java.util.Properties();
+        manifest.load(new java.io.StringReader(entries.get("service/semantic-router.properties")));
+        assertThat(manifest.getProperty("evaluation")).isEqualTo("department");
+        assertThat(manifest.containsKey("question")).isFalse();
+    }
+
+    @Test
     void nativeSinkUsesRequiredDeploymentParametersAndAcknowledgesOnlyAfterDelivery() throws Exception {
         String original = ai.wanaku.backend.api.v1.kamelets.KameletTestSupport.sinkYaml("kafka-sink");
         var upload = new ai.wanaku.backend.api.v1.kamelets.model.KameletUpload();
@@ -260,8 +315,9 @@ class SemanticCatalogTest {
         var yaml = new YAMLMapper().readTree(entries.get(SemanticCatalogGenerator.MAIN));
         assertThat(yaml.get(0)
                         .path("semantic")
-                        .path("question")
+                        .path("evaluation")
                         .path("department")
+                        .path("parameters")
                         .path("instructions")
                         .asText())
                 .isEqualTo(definition.instructions);

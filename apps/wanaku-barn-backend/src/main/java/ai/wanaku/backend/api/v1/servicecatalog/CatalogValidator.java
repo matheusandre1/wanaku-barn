@@ -291,11 +291,10 @@ public class CatalogValidator {
             manifest.load(new ByteArrayInputStream(entries.get("service/semantic-router.properties")));
             if (!"1".equals(manifest.getProperty("contract.version"))
                     || !ai.wanaku.backend.api.v1.semanticrouter.SemanticCatalogGenerator.CAMEL_VERSION.equals(
-                            manifest.getProperty("camel.version"))
-                    || !ai.wanaku.backend.api.v1.semanticrouter.SemanticCatalogGenerator.CAMEL_BUILD.equals(
-                            manifest.getProperty("camel.build"))) {
+                            manifest.getProperty("camel.version"))) {
                 errors.add(new ValidationIssue(
-                        "service/semantic-router.properties", "Unsupported semantic runtime contract or Camel build"));
+                        "service/semantic-router.properties",
+                        "Unsupported semantic runtime contract or Camel version"));
                 return;
             }
             if (!path.equals(manifest.getProperty("main")))
