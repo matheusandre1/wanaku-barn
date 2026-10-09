@@ -11,6 +11,7 @@ import org.junit.jupiter.api.Test;
 import static org.assertj.core.api.Assertions.assertThat;
 
 class SemanticPreviewClientTest {
+    // Response-contract tests use the production default; only the deadline test needs a short timeout.
     @Test
     void sendsOnlyClassificationDataAndValidatesNativeLabels() throws Exception {
         var seen = new AtomicReference<String>();
@@ -26,10 +27,12 @@ class SemanticPreviewClientTest {
         });
         server.start();
         try {
-            SemanticPreviewClient client = client(server);
+            SemanticPreviewClient client = client(server, 15);
             var result = client.evaluate(SemanticCatalogTest.definition(), "Invoice question");
+            assertThat(result.error)
+                    .as("Classification response after %s ms", result.durationMillis)
+                    .isNull();
             assertThat(result.label).isEqualTo("billing");
-            assertThat(result.error).isNull();
             assertThat(result.diagnostics).containsEntry("confidence", 0.8).doesNotContainKey("providerToken");
             assertThat(result.diagnostics.get("probabilities")).isEqualTo(Map.of("billing", 0.8, "technical", 0.2));
             var payload = client.mapper.readTree(seen.get());
@@ -74,8 +77,13 @@ class SemanticPreviewClientTest {
             });
             server.start();
             try {
-                var result = client(server).evaluate(SemanticCatalogTest.definition(), "Message");
-                assertThat(result.error).isNotBlank();
+                var result = client(server, 15).evaluate(SemanticCatalogTest.definition(), "Message");
+                assertThat(result.error)
+                        .as("Provider response: %s", response)
+                        .isEqualTo(
+                                "not JSON".equals(response)
+                                        ? "Semantic evaluation failed"
+                                        : "Semantic evaluation returned an invalid label");
                 assertThat(result.label).isNull();
                 assertThat(result.noMatch).isFalse();
             } finally {
@@ -91,7 +99,7 @@ class SemanticPreviewClientTest {
         });
         server.start();
         try {
-            var result = client(server).evaluate(SemanticCatalogTest.definition(), "Message");
+            var result = client(server, 15).evaluate(SemanticCatalogTest.definition(), "Message");
             assertThat(result.error).isEqualTo("Semantic evaluation failed").doesNotContain("secret");
         } finally {
             server.stop(0);
@@ -110,10 +118,12 @@ class SemanticPreviewClientTest {
         });
         server.start();
         try {
-            var result = client(server).evaluate(SemanticCatalogTest.definition(), "Unrelated");
+            var result = client(server, 15).evaluate(SemanticCatalogTest.definition(), "Unrelated");
+            assertThat(result.error)
+                    .as("No-match response after %s ms", result.durationMillis)
+                    .isNull();
             assertThat(result.noMatch).isTrue();
             assertThat(result.label).isEqualTo("no_match");
-            assertThat(result.error).isNull();
         } finally {
             server.stop(0);
         }
@@ -136,7 +146,7 @@ class SemanticPreviewClientTest {
         });
         server.start();
         try (var executor = java.util.concurrent.Executors.newVirtualThreadPerTaskExecutor()) {
-            SemanticPreviewClient client = client(server);
+            SemanticPreviewClient client = client(server, 1);
             var pending = executor.submit(() -> client.evaluate(SemanticCatalogTest.definition(), "Waiting"));
             assertThat(entered.await(2, java.util.concurrent.TimeUnit.SECONDS)).isTrue();
             var busy = client.evaluate(SemanticCatalogTest.definition(), "Concurrent");
@@ -161,7 +171,7 @@ class SemanticPreviewClientTest {
         });
         server.start();
         try {
-            var result = client(server).evaluate(SemanticCatalogTest.definition(), "Message");
+            var result = client(server, 15).evaluate(SemanticCatalogTest.definition(), "Message");
             assertThat(result.error).isEqualTo("Semantic evaluation failed");
             assertThat(result.label).isNull();
         } finally {
@@ -170,6 +180,10 @@ class SemanticPreviewClientTest {
     }
 
     static SemanticPreviewClient client(HttpServer server) {
+        return client(server, 15);
+    }
+
+    static SemanticPreviewClient client(HttpServer server, int timeoutSeconds) {
         SemanticActionCatalog catalog = new SemanticActionCatalog();
         catalog.kamelets = ai.wanaku.backend.api.v1.kamelets.KameletTestSupport.catalog(
                 ai.wanaku.backend.api.v1.kamelets.KameletTestSupport.repository(new java.util.LinkedHashMap<>()));
@@ -179,7 +193,7 @@ class SemanticPreviewClientTest {
         SemanticPreviewClient client = new SemanticPreviewClient();
         client.catalog = catalog;
         client.mapper = new ObjectMapper();
-        client.timeoutSeconds = 1;
+        client.timeoutSeconds = timeoutSeconds;
         client.maxConcurrency = 1;
         client.url = Optional.of("http://127.0.0.1:" + server.getAddress().getPort() + "/api/v1/preview");
         client.token = Optional.empty();

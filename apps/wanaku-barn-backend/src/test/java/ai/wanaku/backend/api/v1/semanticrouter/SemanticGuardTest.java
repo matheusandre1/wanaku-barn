@@ -216,7 +216,7 @@ class SemanticGuardTest {
         AtomicInteger calls = new AtomicInteger();
         HttpServer server = server(calls, "{\"resultType\":\"boolean\",\"value\":false}", 650);
         try {
-            var client = SemanticPreviewClientTest.client(server);
+            var client = SemanticPreviewClientTest.client(server, 1);
             client.catalog = withSecurity(client.catalog);
             var result = client.evaluate(guarded(), "Invoice");
             assertThat(result.guard).isNotNull();
