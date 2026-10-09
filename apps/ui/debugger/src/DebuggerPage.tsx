@@ -15,11 +15,12 @@ import {
 } from "@carbon/react";
 import {
   defaultEndpoints,
-  executeRun,
+  executeRunResponse,
   managementFetch,
   type RequestSpec,
   type Run,
 } from "./client";
+import { LlmChatPanel } from "./LlmChatPanel";
 import { RunInspector } from "./RunInspector";
 import { A2aPanel, InferencePanel, McpPanel } from "./panels";
 
@@ -55,6 +56,17 @@ function loadSettings(): Settings {
     return defaults;
   }
 }
+function parseHeaders(value: string): Record<string, string> {
+  const parsed: unknown = JSON.parse(value);
+  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed) || Object.values(parsed).some(value => typeof value !== "string"))
+    throw new Error("Headers must be a JSON object of string values");
+  return parsed as Record<string, string>;
+}
+function protocolResponse(run: Run, response: string, strict: boolean): unknown {
+  if (strict && run.outcome === "error") throw new Error(run.summary);
+  const body = strict ? response : run.response;
+  try { return JSON.parse(body) as unknown; } catch { return body; }
+}
 export function DebuggerPage() {
   const [settings, setSettings] = useState(loadSettings);
   const [persist, setPersist] = useState(
@@ -83,19 +95,12 @@ export function DebuggerPage() {
     setSettings(next);
     if (persist) localStorage.setItem(storageKey, JSON.stringify(next));
   }
-  async function send(spec: RequestSpec, inspect = true): Promise<unknown> {
+  async function send(spec: RequestSpec, inspect = true, strict = false): Promise<unknown> {
     if (inspect && document.activeElement instanceof HTMLElement && !document.activeElement.closest('[role="dialog"]')) {
       inspectorLauncher.current = document.activeElement;
     }
     try {
-      const parsed: unknown = JSON.parse(settings.headers);
-      if (
-        !parsed ||
-        typeof parsed !== "object" ||
-        Array.isArray(parsed) ||
-        Object.values(parsed).some((value) => typeof value !== "string")
-      )
-        throw new Error("Headers must be a JSON object of string values");
+      const parsed = parseHeaders(settings.headers);
       const request = {
         ...spec,
         url: spec.url.startsWith("/")
@@ -105,7 +110,7 @@ export function DebuggerPage() {
       };
       setPending((count) => count + 1);
       setError("");
-      const run = await executeRun(
+      const { run, response } = await executeRunResponse(
         request,
         settings.token,
         settings.management,
@@ -121,13 +126,10 @@ export function DebuggerPage() {
         setSelected(run);
         setEditedBody(request.body ?? "");
       }
-      try {
-        return JSON.parse(run.response) as unknown;
-      } catch {
-        return run.response;
-      }
+      return protocolResponse(run, response, strict);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : String(cause));
+      if (strict) throw cause;
       return null;
     } finally {
       setPending((count) => Math.max(0, count - 1));
@@ -266,6 +268,7 @@ export function DebuggerPage() {
           <Tab>MCP</Tab>
           <Tab>A2A</Tab>
           <Tab>Inference</Tab>
+          <Tab>LLM Chat</Tab>
         </TabList>
         <TabPanels>
           <TabPanel>
@@ -288,6 +291,9 @@ export function DebuggerPage() {
               {...panel}
               base={settings.inference}
             />
+          </TabPanel>
+          <TabPanel>
+            <LlmChatPanel {...panel} base={settings.inference} mcp={settings.mcp} />
           </TabPanel>
         </TabPanels>
       </Tabs>

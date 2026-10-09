@@ -90,3 +90,23 @@
   .debugger-json-number { color: theme.$support-info; }
   .debugger-json-literal { color: theme.$support-error; }
 }
+.wanaku-debugger .debugger-chat-tools {
+  border: 1px solid theme.$border-subtle;
+  padding: spacing.$spacing-05;
+}
+.wanaku-debugger .debugger-chat-transcript {
+  display: grid;
+  gap: spacing.$spacing-05;
+  max-height: 32rem;
+  overflow: auto;
+  p { white-space: pre-wrap; overflow-wrap: anywhere; }
+  h3 { margin-bottom: spacing.$spacing-03; }
+}
+.wanaku-debugger .debugger-chat-markdown {
+  p { white-space: normal; }
+  ul, ol { padding-left: spacing.$spacing-06; margin-bottom: spacing.$spacing-05; }
+  li { margin-bottom: spacing.$spacing-03; }
+  a { color: theme.$link-primary; }
+  pre { background: theme.$layer-02; padding: spacing.$spacing-05; }
+  code { font-family: "IBM Plex Mono", monospace; }
+}

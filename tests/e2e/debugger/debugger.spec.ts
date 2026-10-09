@@ -18,7 +18,7 @@ test.beforeEach(async ({page}) => { await management(page); });
 test('bundled plugin registers and renders without Barn services', async ({page}) => {
   await page.goto('/');
   await expect(page.getByRole('link', {name: 'Debugger'})).toBeVisible();
-  for (const name of ['MCP', 'A2A', 'Inference']) await expect(page.getByRole('tab', {name, exact: true})).toBeVisible();
+  for (const name of ['MCP', 'A2A', 'Inference', 'LLM Chat']) await expect(page.getByRole('tab', {name, exact: true})).toBeVisible();
 });
 
 for (const denied of [false, true]) {
@@ -69,7 +69,7 @@ test('A2A sends a message and follows the returned task', async ({page}) => {
   // The registered agent supplies the proxy URL; no backend service is used.
   await page.getByLabel('A2A namespace', {exact: true}).selectOption('test-ns');
   await page.getByLabel('Registered agent').selectOption('helper');
-  await page.getByLabel('Message', {exact: true}).fill('hello agent');
+  await page.getByRole('region', {name: 'A2A debugger', exact: true}).getByLabel('Message', {exact: true}).fill('hello agent');
   await page.getByRole('button', {name: 'SendMessage', exact: true}).click();
   await expect(page.getByRole('dialog', {name: 'Run inspector'})).toBeVisible();
   const downloadPromise = page.waitForEvent('download');

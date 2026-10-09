@@ -12,6 +12,14 @@ Open **Debugger** in the **Developer** navigation section. In **Connection setti
 
 Protocol operations open a centered inspector dialog with formatted, highlighted JSON. Catalog discovery updates the panel without opening the dialog. Select a run in the history to inspect its request, response, status, duration, and policy audit events. Close the dialog with Escape or its close button. Edit and replay a run, copy curl, or export a redacted JSON record. Audit links match namespace, target, and a time window; concurrent traffic may also appear. MCP uses plain JSON-RPC POSTs to Wanaku's stateless listener. The default action-policy posture is `no_match: deny`; register an explicit allow policy before expecting an invocation to succeed.
 
+## LLM Chat
+
+Open the **LLM Chat** tab to converse with an OpenAI-compatible inference provider, including local Ollama endpoints. Set the inference and MCP endpoint bases in Connection settings. Open **LLM settings** for a separate inference API key, system prompt, and extra parameters JSON. An empty API key supports providers without authentication and does not reuse the MCP bearer token. Click **Load models and tools**, choose or enter a model, and select the MCP tools the model may call in the current namespace.
+
+Send a message to start the conversation. The model can request several tools in one response and continue through multiple rounds; every tool result is fed back to the model. Unselected tools are rejected. **Stop generation** cancels pending requests; **Clear conversation** starts fresh. Changing endpoints or namespace clears the conversation and tool selection to prevent tools from another namespace being reused. Streaming is unsupported; use `stream: false`. Conversations stop after 32 tool rounds.
+
+Chat exchanges appear in the same redacted run history and inspector as protocol operations, including policy audit data. The model receives original tool results in memory while history and exports redact credentials. Chat settings stay in memory by default. **Remember LLM settings in this browser** saves configuration; the API key is saved only when **Also remember the inference API key** is enabled separately. Disabling either relevant preference removes the saved key. Conversations are not saved as chat transcripts.
+
 ## Browser access and authentication
 
 Set endpoint base URLs; the plugin adds namespace and protocol paths to them. A deployment exposed only inside a cluster must first be made reachable from your browser. When the UI runs over HTTPS, all listener endpoints must also support HTTPS to avoid mixed-content blocking.

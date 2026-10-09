@@ -22,7 +22,7 @@ export interface PanelProps {
   onNamespace: (namespace: string) => void;
   send: (request: RequestSpec, inspect?: boolean) => Promise<unknown>;
 }
-function NamespaceSelector({ protocol, namespace, namespaces, onNamespace }: {
+export function NamespaceSelector({ protocol, namespace, namespaces, onNamespace }: {
   protocol: string;
   namespace: string;
   namespaces: string[];

@@ -17,11 +17,12 @@
     "@carbon/icons-react": "^11.86.0",
     "@carbon/layout": "^11.57.0",
     "@carbon/react": "^1.114.0",
+    "ajv": "^8.17.1",
     "react": "^19.2.4",
     "react-dom": "^19.2.4",
     "react-is": "^19.2.4",
-    "sass": "^1.98.0",
-    "ajv": "^8.17.1"
+    "react-markdown": "^10.1.0",
+    "sass": "^1.98.0"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.4",

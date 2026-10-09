@@ -7,6 +7,8 @@ export interface RequestSpec {
   body?: string;
   namespace?: string;
   target?: string;
+  token?: string;
+  signal?: AbortSignal;
 }
 export interface Run {
   id: string;
@@ -85,8 +87,8 @@ export function defaultEndpoints(base: string = window.location.href) {
   };
 }
 
-export async function managementFetch(url: string, token?: string): Promise<unknown> {
-  const response = await fetch(url, { headers: token ? { Authorization: `Bearer ${token}` } : {} });
+export async function managementFetch(url: string, token?: string, signal?: AbortSignal): Promise<unknown> {
+  const response = await fetch(url, { headers: token ? { Authorization: `Bearer ${token}` } : {}, signal });
   if (!response.ok) throw new Error(`Management API: HTTP ${response.status}`);
   const payload = await response.json();
   if (payload?.error) throw new Error(typeof payload.error === 'string' ? payload.error : JSON.stringify(payload.error));
@@ -106,22 +108,30 @@ function summarise(status: number, body: string): { outcome: Run['outcome']; sum
     : { outcome: 'error', summary: `Upstream HTTP ${status}` };
 }
 
-export async function executeRun(spec: RequestSpec, token?: string, managementBase = ''): Promise<Run> {
+export async function executeRunResponse(spec: RequestSpec, token?: string, managementBase = ''): Promise<{ run: Run; response: string }> {
+  const managementToken = token;
+  token = spec.token ?? token;
+  let rawResponse = '';
   const started = Date.now();
   const headers = new Headers(spec.headers);
+  if (spec.token !== undefined) headers.delete('Authorization');
   if (token) headers.set('Authorization', `Bearer ${token}`);
-  const actual = { ...spec, headers: Object.fromEntries(headers.entries()) };
-  const secrets = requestSecrets(actual, token);
+  const safeSpec = { ...spec };
+  delete safeSpec.signal;
+  delete safeSpec.token;
+  const actual = { ...safeSpec, headers: Object.fromEntries(headers.entries()) };
+  const secrets = [...requestSecrets(actual, token), ...(managementToken ? [managementToken] : [])];
   const run: Run = {
     id: crypto.randomUUID(), startedAt: new Date(started).toISOString(), durationMs: 0,
     request: redact(actual, secrets), status: null, responseHeaders: {}, response: '',
     outcome: 'error', summary: '', audit: [],
   };
   try {
-    const response = await fetch(spec.url, { method: spec.method, headers, body: spec.body });
+    const response = await fetch(spec.url, { method: spec.method, headers, body: spec.body, signal: spec.signal });
     run.status = response.status;
     run.responseHeaders = redact(Object.fromEntries(response.headers.entries()), secrets);
-    run.response = redact(await response.text(), secrets);
+    rawResponse = await response.text();
+    run.response = redact(rawResponse, secrets);
     Object.assign(run, summarise(response.status, run.response));
   } catch (error) {
     run.error = redact(error instanceof Error ? error.message : String(error), secrets);
@@ -135,12 +145,16 @@ export async function executeRun(spec: RequestSpec, token?: string, managementBa
   if (spec.target) query.set('target', spec.target);
   run.auditUrl = `${managementBase.replace(/\/$/, '')}/api/v1/audit/events?${query}`;
   try {
-    const page = await managementFetch(run.auditUrl, token) as { events?: unknown[] };
+    const page = await managementFetch(run.auditUrl, managementToken, spec.signal) as { events?: unknown[] };
     run.audit = redact(page?.events || [], secrets);
   } catch (error) {
     run.auditError = redact(error instanceof Error ? error.message : String(error), secrets);
   }
-  return run;
+  return { run, response: rawResponse };
+}
+
+export async function executeRun(spec: RequestSpec, token?: string, managementBase = ''): Promise<Run> {
+  return (await executeRunResponse(spec, token, managementBase)).run;
 }
 
 const quote = (value: string) => `'${value.replace(/'/g, `'"'"'`)}'`;
