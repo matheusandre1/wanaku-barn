@@ -11,8 +11,8 @@ Keycloak.
 
 ## Quick Start
 
-The quickest way to run Wanaku Barn is to install it as a plugin in Wanaku. It is already listed in the 
-default catalog. When asked for the configuration, provide the address on which Wanaku Barn listens to (<http://localhost:8180>). 
+The quickest way to run Wanaku Barn is to install it as a plugin in Wanaku. It is already listed in the
+default catalog. When asked for the configuration, provide the address on which Wanaku Barn listens to (<http://localhost:8180>).
 
 Once installed, select one of the Wanaku Barn backend deliverables from the [releases page](https://github.com/wanaku-ai/wanaku-barn/releases),
 unpack it and launch the process:
