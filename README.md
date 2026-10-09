@@ -18,7 +18,7 @@ Once installed, select one of the Wanaku Barn backend deliverables from the [rel
 unpack it and launch the process:
 
 ```shell
-java -jar apps/wanaku-barn-backend/target/quarkus-app/quarkus-run.jar
+java -jar /path/to/quarkus-run.jar
 ```
 
 You should see an Extensions menu, with several items. If you select, for instance, Data Stores, you should see:
