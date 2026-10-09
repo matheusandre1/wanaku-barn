@@ -214,8 +214,10 @@ class SemanticRouterBeanTest {
                 .isInstanceOf(SemanticResolutionConflictException.class);
     }
 
-    @Test
-    void legacySinglePublicationRecoversExpertFromVerifiedArchiveWithoutDraftExpert() throws Exception {
+    @ParameterizedTest
+    @ValueSource(strings = {"\n", "\r\n"})
+    void legacySinglePublicationRecoversExpertFromVerifiedArchiveWithoutDraftExpert(String lineEnding)
+            throws Exception {
         var saved = bean.save(null, SemanticCatalogTest.definition());
         var publication = bean.publish(saved.id);
         DataStore metadata = stored.values().stream()
@@ -227,13 +229,17 @@ class SemanticRouterBeanTest {
                 .decode(catalogs.get(publication.catalogName).getData()));
         var legacyFiles = new java.util.TreeMap<>(files);
         legacyFiles.remove(SemanticCatalogGenerator.EXPERTS);
-        legacyFiles.put(
-                "service/semantic-router.properties",
-                new String(
-                                legacyFiles.get("service/semantic-router.properties"),
-                                java.nio.charset.StandardCharsets.UTF_8)
-                        .replace("experts=service/experts.json\n", "")
-                        .getBytes(java.nio.charset.StandardCharsets.UTF_8));
+        byte[] manifestBytes = new String(
+                        legacyFiles.get("service/semantic-router.properties"), java.nio.charset.StandardCharsets.UTF_8)
+                .replace("\r\n", "\n")
+                .replace("\n", lineEnding)
+                .getBytes(java.nio.charset.StandardCharsets.UTF_8);
+        var manifest = new java.util.Properties();
+        manifest.load(new java.io.ByteArrayInputStream(manifestBytes));
+        manifest.remove("experts");
+        var legacyManifest = new java.io.ByteArrayOutputStream();
+        manifest.store(legacyManifest, null);
+        legacyFiles.put("service/semantic-router.properties", legacyManifest.toByteArray());
         var bytes = new java.io.ByteArrayOutputStream();
         try (var zip = new java.util.zip.ZipOutputStream(bytes)) {
             for (var entry : legacyFiles.entrySet()) {
