@@ -21,7 +21,6 @@ on:
       - SECURITY.md
       - get-wanaku.sh
       - javadoc-warm.sh
-      - tests/plans/**
       - .*
 
 permissions:

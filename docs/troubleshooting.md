@@ -164,7 +164,7 @@ kubectl set env deployment/keycloak \
   -n "${WANAKU_NAMESPACE}"
 ```
 
-The `deploy/auth/keycloak.yaml` manifest includes a `KEYCLOAK_HOST` placeholder for `KC_HOSTNAME` — replace it with your actual hostname before applying. See also the [Keycloak setup test plan](../tests/plans/common/keycloak-setup.md) for the full automated procedure.
+The `deploy/auth/keycloak.yaml` manifest includes a `KEYCLOAK_HOST` placeholder for `KC_HOSTNAME` — replace it with your actual hostname before applying. See also the Keycloak setup procedure (`plans/common/keycloak-setup.md`) in [wanaku-tests](https://github.com/wanaku-ai/wanaku-tests) for the full automated procedure.
 
 ### Browser shows "502 Bad Gateway" after sign in from Keycloak
 

@@ -54,6 +54,7 @@ Contributors working on the project may want to refer to the [development versio
 - [Audit Trail](docs/audit-trail.md) - Durable record of changes to Barn-managed resources
 - [Backup, Restore and Upgrade](docs/backup-and-upgrade.md) - Export, import and schema migrations
 - [Agent Skills](docs/agent-skills.md) - Skills that teach coding agents how to use Wanaku
+- [Test Plans](https://github.com/wanaku-ai/wanaku-tests) - Test plans for humans and AI agents
 - [Contributing](CONTRIBUTING.md) - Contribution guidelines
 - [Security](SECURITY.md) - Security policy and best practices
 

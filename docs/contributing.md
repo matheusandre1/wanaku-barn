@@ -56,19 +56,19 @@ video that shows how to use the MCP Inspector to perform these steps.
 
 > [!IMPORTANT]
 > When running operator test plans on OpenShift, use a dedicated service account instead of your personal (admin) credentials.
-> See [Service Account Setup](../tests/plans/setup/service-account-setup.md) for instructions.
+> See `plans/setup/service-account-setup.md` in [wanaku-tests](https://github.com/wanaku-ai/wanaku-tests) for instructions.
 
 There are multiple ways you can test Wanaku and the integrations you develop.
 
 1. Wanaku's LLMchat page in the Web UI
 2. You can use the [MCP inspector](https://modelcontextprotocol.io/docs/tools/inspector) to easily test your tool or provider.
 3. Use the maintained test suites under `tests/e2e`, `tests/mcp-servers`, and `tests/load`.
-4. Follow or create test plans under `tests/plans/` (see [Writing Test Plans](contributing-test-plans.md)).
+4. Follow or create test plans in [wanaku-tests](https://github.com/wanaku-ai/wanaku-tests) under `plans/`.
 5. Any agent application (such as [HyperChat](https://github.com/BigSweetPotatoStudio/HyperChat))
 
 ### Writing Test Plans
 
-See [contributing-test-plans.md](contributing-test-plans.md) for the full guide on writing test plans.
+Test plans are maintained in [wanaku-tests](https://github.com/wanaku-ai/wanaku-tests). Follow that project’s instructions for writing and running plans.
 
 ## Deploying to the Development Environment
 

@@ -44,7 +44,6 @@ services/
 tests/
   e2e/                     # End-to-end tests
   load/                    # Load tests
-  plans/                   # Test plans for humans and AI agents
 ```
 
 ## Commands
@@ -93,8 +92,8 @@ make install
 
 ## Test Plans
 
-- Test plans live under `tests/plans/`, reusable steps under `tests/plans/common/`
-- Guidelines for writing test plans are in `docs/contributing-test-plans.md`
+- Test plans and reusable steps are maintained in [wanaku-tests](https://github.com/wanaku-ai/wanaku-tests), under `plans/` and `plans/common/`
+- Follow the test-plan instructions in wanaku-tests when writing or running plans
 
 ## Acceptance Criteria
 
