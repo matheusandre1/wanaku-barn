@@ -65,6 +65,9 @@ make cli-native
 
 # Install CLI to ~/bin
 make install
+
+# OLM bundle (operator)
+make olm-bundle olm-validate   # see docs/operator-olm.md
 ```
 
 ## Code Style
@@ -81,6 +84,7 @@ make install
 - Helm chart: `apps/wanaku-operator/deploy/helm/wanaku-operator/`
 - When adding new CRDs, RBAC rules must be added to the Helm chart (see `docs/contributing.md`)
 - CRD manifests are auto-generated during build in `target/kubernetes/`, must be copied to `crds/`
+- OLM bundle: generated in `apps/wanaku-operator/target/bundle/` by `make olm-bundle`; CSV metadata lives in `WanakuBundleMetadata`, operand images in `apps/wanaku-operator/olm/related-images.txt`; see `docs/operator-olm.md`
 - Router internal URL pattern: `http://barn-{routerRef}:8080`
 
 ## Service Catalogs

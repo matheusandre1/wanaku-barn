@@ -24,6 +24,13 @@
             <version>${quarkus-operator-sdk.version}</version>
         </dependency>
 
+        <!-- Generates the OLM bundle (CSV, CRDs, annotations, bundle.Dockerfile) in target/bundle -->
+        <dependency>
+            <groupId>io.quarkiverse.operatorsdk</groupId>
+            <artifactId>quarkus-operator-sdk-bundle-generator</artifactId>
+            <version>${quarkus-operator-sdk.version}</version>
+        </dependency>
+
         <dependency>
             <groupId>ai.wanaku</groupId>
             <artifactId>core-util</artifactId>

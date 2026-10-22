@@ -55,7 +55,10 @@ import ai.wanaku.operator.util.Workloads;
 import static ai.wanaku.operator.util.Matchers.match;
 
 @ControllerConfiguration(informer = @Informer(namespaces = Constants.WATCH_CURRENT_NAMESPACE), name = "wanaku-router")
-@CSVMetadata(displayName = "Wanaku Router operator", description = "Deploys and manages the Wanaku Router")
+@CSVMetadata(
+        bundleName = WanakuBundleMetadata.BUNDLE_NAME,
+        displayName = "Wanaku Router",
+        description = "Deploys and manages the Wanaku Router")
 @RBACRule(
         apiGroups = "",
         resources = {"persistentvolumeclaims", "services", "configmaps", "secrets", "serviceaccounts"},

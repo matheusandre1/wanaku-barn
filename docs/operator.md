@@ -108,6 +108,12 @@ helm install wanaku-operator ./apps/wanaku-operator/deploy/helm/wanaku-operator 
   --set app.envs.QUARKUS_OPERATOR_SDK_CONTROLLERS_WANAKU_SERVICE_CATALOG_NAMESPACES=JOSDK_ALL_NAMESPACES
 ```
 
+### Alternative: install through OLM
+
+On clusters with the Operator Lifecycle Manager (OpenShift, or Kubernetes with OLM installed), install the operator
+from OperatorHub instead of Helm. The bundle supports the `OwnNamespace` and `SingleNamespace` install modes. See
+[Wanaku Operator on OperatorHub](operator-olm.md) for building and testing the bundle locally.
+
 ### 3. Verify the Operator
 
 ```shell

@@ -166,6 +166,23 @@ This workflow will:
 - [ ] Multi-arch manifests are published (verify with `podman manifest inspect`)
 - [ ] JBang installation works: `jbang app install wanaku@wanaku-ai/wanaku`
 
+### Publish the OLM Bundle
+
+Run after the operator image is published (see [operator-olm.md](operator-olm.md)):
+
+```shell
+gh workflow run release-olm-bundle \
+  -f currentDevelopmentVersion=${CURRENT_VERSION} \
+  -f previousVersion=${PREVIOUS_VERSION} \
+  -f operandTag=${CURRENT_VERSION}
+```
+
+- [ ] `quay.io/wanaku/wanaku-operator-bundle:${CURRENT_VERSION}` is published
+- [ ] The bundle ZIP is attached to the GitHub Release
+- [ ] The pull request on `k8s-operatorhub/community-operators` passes its CI and is merged
+- [ ] The pull request on `redhat-openshift-ecosystem/community-operators-prod` passes its CI and is merged
+- [ ] `apps/wanaku-operator/olm/related-images.txt` lists the operand images of this release
+
 ### Post-Release
 
 - [ ] Verify the Helm chart `Chart.yaml` version was bumped to the next SNAPSHOT
@@ -307,4 +324,5 @@ version branches. The versions are **hardcoded in the Makefile** and must be upd
 | Service template ships with SNAPSHOT dep | A `*.dependencies.txt` may have a pinned SNAPSHOT version | `grep -r SNAPSHOT services/service-templates/src/main/services/` before release |
 | Demos reference old SDK version | pom.xml and README files have hardcoded SDK versions | Update all version refs in `wanaku-demos` before tagging |
 | Demos CLI download links stale | README files link to a specific CLI release tag | Update download URLs in `2.01-*` and `2.02-*` READMEs |
+| OLM bundle references `latest` operand images | `operandTag` input left empty in `release-olm-bundle` | Pass `operandTag` for every release |
 | `version.txt` stale in Makefile | Reads from `target/` which requires a build | Run `mvn install` before using Makefile targets |

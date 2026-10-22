@@ -41,7 +41,8 @@ import static ai.wanaku.operator.util.Matchers.match;
         informer = @Informer(namespaces = Constants.WATCH_CURRENT_NAMESPACE),
         name = "wanaku-semantic-router")
 @CSVMetadata(
-        displayName = "Wanaku Semantic Router operator",
+        bundleName = WanakuBundleMetadata.BUNDLE_NAME,
+        displayName = "Wanaku Semantic Router",
         description = "Deploys Wanaku Semantic Router runtimes and reports their registration")
 @RBACRule(
         apiGroups = "apps",

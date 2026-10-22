@@ -40,7 +40,8 @@ import static ai.wanaku.operator.util.OperatorUtil.readyCondition;
         informer = @Informer(namespaces = Constants.WATCH_CURRENT_NAMESPACE),
         name = "wanaku-service-catalog")
 @CSVMetadata(
-        displayName = "Wanaku Service Catalog operator",
+        bundleName = WanakuBundleMetadata.BUNDLE_NAME,
+        displayName = "Wanaku Service Catalog",
         description = "Deploys and manages Wanaku Service Catalogs")
 @RBACRule(
         apiGroups = "",

@@ -41,7 +41,8 @@ import static ai.wanaku.operator.util.Matchers.match;
         informer = @Informer(namespaces = Constants.WATCH_CURRENT_NAMESPACE),
         name = "wanaku-integration")
 @CSVMetadata(
-        displayName = "Wanaku Integration operator",
+        bundleName = WanakuBundleMetadata.BUNDLE_NAME,
+        displayName = "Wanaku Integration",
         description = "Deploys Camel Integration Capability runtimes and reports their registration")
 @RBACRule(
         apiGroups = "apps",
