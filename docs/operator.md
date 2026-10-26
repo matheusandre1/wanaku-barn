@@ -39,12 +39,14 @@ to register against.
 On OpenShift, the operator creates two Routes: `wanaku-dev` for the management API and
 `wanaku-dev-mcp` for the MCP endpoint. OpenShift generates a hostname for each Route.
 The MCP Route sends all paths to the MCP listener. MCP clients use these paths:
-`/mcp`, `/<namespace>/mcp`, and the OAuth discovery paths `/.well-known/*`, `/authorize`, `/token` and `/register`.
+`/<namespace>/mcp` (for example `/default/mcp`), and the OAuth discovery paths `/.well-known/*`, `/authorize`, `/token` and `/register`.
 Set `spec.exposure.host` to use one hostname for both Routes. This needs the
-`routes/custom-host` permission. On a shared hostname, the MCP Route receives only `/mcp`.
-The namespace endpoints and the OAuth discovery paths are then not available to MCP clients.
+`routes/custom-host` permission. On a shared hostname, the MCP Route receives `/default/mcp`.
+Other Wanaku namespaces and the OAuth discovery paths require a separate MCP hostname
+using `spec.exposure.listeners` (see [Exposure](#exposure)).
 `status.host` contains the management URL.
-`status.sseEndpoint` and `status.streamableEndpoint` contain the MCP URLs.
+`status.streamableEndpoint` contains the default namespace MCP URL.
+`status.sseEndpoint` is deprecated and left empty because Wanaku Server has no SSE transport.
 
 ## Upgrading from the PoC naming
 
@@ -294,7 +296,7 @@ The admin UI plugin archive is a separate installation step (`POST /api/v1/plugi
 
 The operator supports two exposure modes:
 
-- **Shared host** (`listeners` is not set): when `host` is set, both listeners use that host. The management listener uses the path `/`, and the MCP listener uses the path `/mcp`. Namespaced MCP endpoints (`/<namespace>/mcp`) and the OAuth discovery paths are not reachable in this configuration. On OpenShift without `host`, OpenShift generates a different host for each of the two Routes, and the MCP Route uses the path `/`, so all MCP paths are reachable. Inference and A2A are not exposed. On Kubernetes without `spec.exposure`, the operator exposes nothing.
+- **Shared host** (`listeners` is not set): when `host` is set, both listeners use that host. The management listener uses the path `/`, and the MCP listener uses the path `/default/mcp`. Only the default Wanaku namespace is reachable through MCP; use one host per listener for other namespaces and OAuth discovery. On OpenShift without `host`, OpenShift generates a different host for each of the two Routes, and the MCP Route uses the path `/`, so all MCP paths are reachable. Inference and A2A are not exposed. On Kubernetes without `spec.exposure`, the operator exposes nothing.
 - **One host per listener** (`listeners` is set): each exposed listener gets its own Route or Ingress, named `<router>-<listener>`, for the path `/`. All MCP endpoints, including `/<namespace>/mcp`, are reachable.
 
 Each entry in `listeners` (`management`, `mcp`, `inference`, `a2a`) has these fields:
@@ -322,7 +324,7 @@ The operator uses these rules:
 - When you disable a listener, change the mode or set `type: None`, the operator deletes the Routes and Ingresses that are no longer necessary.
 - To set a Route host, the operator service account needs the `create` verb on `routes/custom-host`. The Helm chart grants it.
 
-`status.endpoints` contains the public URL of each exposed listener, for example `https://mcp.wanaku.example.com/mcp`.
+`status.endpoints` contains the public URL of each exposed listener, for example `https://mcp.wanaku.example.com/default/mcp`.
 The `ExposureReady` condition is `True` when the OpenShift router admits all Routes. When a Route is rejected (for example, because another Route already uses the host), the reason is `RouteNotAdmitted` and the message contains the router message.
 
 ### WanakuServiceCatalog (`wanaku.ai/v1alpha1`)

@@ -448,16 +448,17 @@ public class WanakuRouterReconciler implements Reconciler<WanakuRouter> {
         final Map<String, String> endpoints = new LinkedHashMap<>();
         exposure.hosts.forEach((listener, host) -> endpoints.put(
                 listener.id(),
-                listener == ServerListener.MCP ? "https://%s/mcp".formatted(host) : "https://%s/".formatted(host)));
+                listener == ServerListener.MCP
+                        ? "https://%s/default/mcp".formatted(host)
+                        : "https://%s/".formatted(host)));
         final String managementHost = exposure.hosts.get(ServerListener.MANAGEMENT);
         if (managementHost != null && !RouterResourceFactory.isHeadless(resource)) {
             endpoints.put(ADMIN_UI_ENDPOINT, "https://%s/admin/".formatted(managementHost));
         }
         wanakuStatus.setEndpoints(endpoints.isEmpty() ? null : endpoints);
-        final String mcpHost = exposure.hosts.getOrDefault(ServerListener.MCP, exposure.host);
         wanakuStatus.setHost("https://" + exposure.hosts.getOrDefault(ServerListener.MANAGEMENT, exposure.host));
-        wanakuStatus.setSseEndpoint("https://%s/mcp/sse".formatted(mcpHost));
-        wanakuStatus.setStreamableEndpoint("https://%s/mcp/".formatted(mcpHost));
+        wanakuStatus.setSseEndpoint(null);
+        wanakuStatus.setStreamableEndpoint(endpoints.get(ServerListener.MCP.id()));
 
         if (RouterResourceFactory.isBarnEnabled(resource)) {
             deployBarnBackend(resource, context, namespace);

@@ -285,7 +285,7 @@ class WanakuSemanticRouterReconcilerTest {
         barnSpec.setEnabled(barn);
         router.getSpec().setBarn(barnSpec);
         WanakuRouterStatus status = new WanakuRouterStatus();
-        status.setEndpoints(Map.of("mcp", "https://mcp.example.com/mcp"));
+        status.setEndpoints(Map.of("mcp", "https://mcp.example.com/default/mcp"));
         router.setStatus(status);
         client.resource(router).create();
         client.resource(router).updateStatus();

@@ -94,6 +94,7 @@ class WanakuIntegrationReconcilerTest {
                 .isTrue();
         assertThat(condition(integration, "Registered").getReason()).isEqualTo("WaitingForRuntime");
         assertThat(integration.getStatus().getForwardName()).isEqualTo("orders");
+        assertThat(integration.getStatus().getWanakuEndpoint()).isEqualTo("https://mcp.example.com/default/mcp");
     }
 
     @Test
@@ -210,6 +211,9 @@ class WanakuIntegrationReconcilerTest {
         WanakuRouterSpec.BarnSpec barnSpec = new WanakuRouterSpec.BarnSpec();
         barnSpec.setEnabled(barn);
         router.getSpec().setBarn(barnSpec);
+        WanakuRouterStatus status = new WanakuRouterStatus();
+        status.setEndpoints(Map.of("mcp", "https://mcp.example.com/default/mcp"));
+        router.setStatus(status);
         client.resource(router).create();
     }
 

@@ -47,10 +47,14 @@ public class WanakuRouterStatus {
         this.host = host;
     }
 
+    /** @deprecated Wanaku Server has no SSE transport; this field is left empty. */
+    @Deprecated
     public String getSseEndpoint() {
         return sseEndpoint;
     }
 
+    /** @deprecated Wanaku Server has no SSE transport; retained to clear legacy status. */
+    @Deprecated
     public void setSseEndpoint(String sseEndpoint) {
         this.sseEndpoint = sseEndpoint;
     }

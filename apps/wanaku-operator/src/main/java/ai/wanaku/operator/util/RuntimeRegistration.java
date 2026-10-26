@@ -1,6 +1,7 @@
 package ai.wanaku.operator.util;
 
 import java.io.IOException;
+import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.util.Base64;
 import java.util.List;
@@ -98,7 +99,7 @@ public final class RuntimeRegistration {
         if (mcp == null) {
             return null;
         }
-        return "default".equals(forwardNamespace) ? mcp : mcp.replaceFirst("/mcp$", "/" + forwardNamespace + "/mcp");
+        return URI.create(mcp).resolve("/" + forwardNamespace + "/mcp").toString();
     }
 
     /** Fails when a referenced Secret is missing; returns the error message or null. */

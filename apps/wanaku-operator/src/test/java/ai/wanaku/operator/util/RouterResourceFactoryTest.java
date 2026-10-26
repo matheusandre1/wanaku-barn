@@ -249,7 +249,7 @@ class RouterResourceFactoryTest {
                 RouterResourceFactory.makeServerRoute(router, "wanaku.example.com", false),
                 RouterResourceFactory.makeServerRoute(router, "wanaku.example.com", true));
         assertEquals(
-                Map.of("/", 8080, "/mcp", 8081),
+                Map.of("/", 8080, "/default/mcp", 8081),
                 routes.stream()
                         .collect(java.util.stream.Collectors.toMap(
                                 r -> r.getSpec().getPath(),
@@ -278,6 +278,15 @@ class RouterResourceFactoryTest {
     void serverIngressTargetsPort8081() {
         WanakuRouter router = createRouter(null);
         Ingress ingress = RouterResourceFactory.makeServerIngress(router, "wanaku.example.com");
+        assertEquals(
+                "/default/mcp",
+                ingress.getSpec()
+                        .getRules()
+                        .getFirst()
+                        .getHttp()
+                        .getPaths()
+                        .getFirst()
+                        .getPath());
         assertEquals(
                 8081,
                 ingress.getSpec()

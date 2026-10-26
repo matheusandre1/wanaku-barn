@@ -58,17 +58,19 @@ class WanakuRouterExposureTest {
     @Test
     void exposureHostIsSharedByBothRoutes() {
         WanakuRouter router = createRouter(sharedExposure("wanaku.example.com"));
+        WanakuRouterStatus status = new WanakuRouterStatus();
+        status.setSseEndpoint("https://wanaku.example.com/mcp/sse");
+        router.setStatus(status);
 
-        WanakuRouterReconciler.Exposure exposure = reconciler.reconcileExternalAccess(router, NAMESPACE);
+        reconciler.reconcile(router, null);
 
         assertThat(route("wanaku-dev").getSpec().getHost()).isEqualTo("wanaku.example.com");
         assertThat(route("wanaku-dev-mcp").getSpec().getHost()).isEqualTo("wanaku.example.com");
         assertThat(route("wanaku-dev").getSpec().getPath()).isEqualTo("/");
-        assertThat(route("wanaku-dev-mcp").getSpec().getPath()).isEqualTo("/mcp");
-        assertThat(exposure.hosts)
-                .containsOnly(
-                        Map.entry(ServerListener.MANAGEMENT, "wanaku.example.com"),
-                        Map.entry(ServerListener.MCP, "wanaku.example.com"));
+        assertThat(route("wanaku-dev-mcp").getSpec().getPath()).isEqualTo("/default/mcp");
+        assertThat(router.getStatus().getStreamableEndpoint()).isEqualTo("https://wanaku.example.com/default/mcp");
+        assertThat(router.getStatus().getEndpoints()).containsEntry("mcp", "https://wanaku.example.com/default/mcp");
+        assertThat(router.getStatus().getSseEndpoint()).isNull();
     }
 
     @Test
@@ -212,8 +214,10 @@ class WanakuRouterExposureTest {
                         "WANAKU_A2A_PUBLIC_URL".equals(e.getName()) && "https://a2a.example.com/".equals(e.getValue()));
         assertThat(router.getStatus().getEndpoints())
                 .containsEntry("management", "https://mgmt.example.com/")
-                .containsEntry("mcp", "https://mcp.example.com/mcp")
+                .containsEntry("mcp", "https://mcp.example.com/default/mcp")
                 .containsEntry("a2a", "https://a2a.example.com/");
+        assertThat(router.getStatus().getStreamableEndpoint()).isEqualTo("https://mcp.example.com/default/mcp");
+        assertThat(router.getStatus().getSseEndpoint()).isNull();
     }
 
     @Test
