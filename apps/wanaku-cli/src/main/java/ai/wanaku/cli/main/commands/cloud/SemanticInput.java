@@ -2,6 +2,7 @@ package ai.wanaku.cli.main.commands.cloud;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
@@ -89,7 +90,10 @@ final class SemanticInput {
             }
         }
 
-        final long size = files.values().stream().mapToLong(String::length).sum();
+        // The ConfigMap limit is in bytes: count the UTF-8 encoding, not the characters
+        final long size = files.values().stream()
+                .mapToLong(content -> content.getBytes(StandardCharsets.UTF_8).length)
+                .sum();
         if (size > CloudRunSupport.MAX_INPUT_BYTES) {
             throw IntegrationInput.invalid("The semantic route files are larger than %d KiB"
                     .formatted(CloudRunSupport.MAX_INPUT_BYTES / 1024));

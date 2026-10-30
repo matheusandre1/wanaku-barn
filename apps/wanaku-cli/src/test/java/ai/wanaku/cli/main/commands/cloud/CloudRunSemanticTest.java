@@ -132,6 +132,17 @@ class CloudRunSemanticTest {
     }
 
     @Test
+    void theSizeLimitCountsBytesNotCharacters() throws Exception {
+        // Two files of 160 Ki euro signs: 320 Ki characters, but 960 KiB in UTF-8
+        String padding = "#" + "€".repeat(160 * 1024) + "\n";
+        Files.writeString(route.resolveSibling("kamelets/padding-1.kamelet.yaml"), padding);
+        Files.writeString(route.resolveSibling("kamelets/padding-2.kamelet.yaml"), padding);
+
+        assertThat(command().doCall(null, printer)).isEqualTo(CloudRunSupport.EXIT_INVALID_INPUT);
+        verify(printer).printErrorMessage(contains("larger than 900 KiB"));
+    }
+
+    @Test
     void aFailedRuntimeStartIsReported() throws Exception {
         Thread operator = new Thread(() -> {
             for (int i = 0; i < 100 && semanticRouter("support") == null; i++) {
