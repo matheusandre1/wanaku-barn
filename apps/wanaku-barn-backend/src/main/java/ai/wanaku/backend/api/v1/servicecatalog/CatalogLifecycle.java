@@ -110,6 +110,9 @@ public class CatalogLifecycle {
             if (cacheManager.getCacheConfiguration(name) == null) {
                 cacheManager.defineConfiguration(name, configuration);
             }
+            // Start the cache now. After a restart the persisted global state already defines it, and the
+            // health check reports a defined cache that is not running as FAILED (wanaku-barn#287).
+            cacheManager.getCache(name);
         }
     }
 
